@@ -1,0 +1,3 @@
+# Reporting Architecture
+
+Reporting Architecture is a subsystem responsible for transforming business objects, register facts, register totals, valuation facts, and cost balances into analytical datasets. The subsystem does not create accounting facts, does not perform posting, does not execute valuation logic, and does not own business state. Its responsibility is limited to data extraction, aggregation, dimensional analysis, and report dataset construction. Report execution produces a platform-neutral dataset that can be consumed by UI, export, or integration layers.
