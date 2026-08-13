@@ -31,3 +31,12 @@ class Definition:
 
         if not self.name.strip():
             raise DefinitionError("Definition name is required.")
+
+    def require_identifier(self) -> Identifier:
+        """Return the identifier after validation."""
+        self.validate()
+
+        if self.identifier is None:
+            raise DefinitionError("Definition identifier is required.")
+
+        return self.identifier
