@@ -2,7 +2,7 @@ from accore.platform.foundation import Identifier
 from accore.platform.metadata import CatalogMetadata
 from accore.platform.runtime.resolution import RuntimeResolver
 from standard.bootstrap import StandardConfigurationBootstrap
-from standard.definitions.catalogs import ASSORTMENT_ID
+from standard.definitions.assortment import ASSORTMENT_ID
 
 
 def test_standard_bootstrap_produces_resolvable_runtime_context() -> None:
