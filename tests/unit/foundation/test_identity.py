@@ -33,3 +33,8 @@ def test_identifier_is_immutable() -> None:
 
     with pytest.raises(AttributeError):
         identifier._value = ulid.new()  # type: ignore[misc]
+
+
+def test_invalid_identifier_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        Identifier.from_str("not-a-valid-ulid")
