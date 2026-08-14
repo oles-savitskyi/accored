@@ -1,6 +1,8 @@
 import pytest
 
+from accore.platform.definitions.attribute import AttributeType
 from accore.platform.foundation import Identifier
+from accore.platform.metadata.attribute import AttributeMetadata
 from accore.platform.metadata.base import MetadataType
 from accore.platform.metadata.catalog import CatalogMetadata
 
@@ -52,3 +54,46 @@ def test_catalog_metadata_preserves_normalized_content() -> None:
     )
 
     assert metadata.normalized_content == content
+
+
+def test_catalog_metadata_contains_attributes() -> None:
+    attributes = (
+        AttributeMetadata(
+            name="code",
+            attribute_type=AttributeType.STRING,
+            nullable=False,
+        ),
+        AttributeMetadata(
+            name="name",
+            attribute_type=AttributeType.STRING,
+            nullable=False,
+        ),
+    )
+
+    metadata = CatalogMetadata(
+        identifier=Identifier.new(),
+        name="Assortment",
+        source_definition_id=Identifier.new(),
+        attributes=attributes,
+    )
+
+    assert metadata.attributes == attributes
+    assert metadata.attributes[0].name == "code"
+    assert metadata.attributes[1].name == "name"
+
+
+def test_catalog_metadata_attributes_are_immutable() -> None:
+    metadata = CatalogMetadata(
+        identifier=Identifier.new(),
+        name="Assortment",
+        source_definition_id=Identifier.new(),
+        attributes=(
+            AttributeMetadata(
+                name="code",
+                attribute_type=AttributeType.STRING,
+            ),
+        ),
+    )
+
+    with pytest.raises(AttributeError):
+        metadata.attributes = ()  # type: ignore[misc]

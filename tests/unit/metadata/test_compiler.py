@@ -1,6 +1,7 @@
 import pytest
 
 from accore.platform.definitions import CatalogDefinition
+from accore.platform.definitions.attribute import AttributeDefinition, AttributeType
 from accore.platform.foundation import DefinitionError, Identifier
 from accore.platform.metadata import MetadataCompiler
 from accore.platform.metadata.catalog import CatalogMetadata
@@ -60,3 +61,92 @@ def test_compiler_rejects_unsupported_definition() -> None:
 
     with pytest.raises(TypeError):
         compiler.compile(UnsupportedDefinition())  # type: ignore[arg-type]
+
+
+def test_catalog_definition_attributes_compile_to_metadata() -> None:
+    definition_id = Identifier.new()
+
+    definition = CatalogDefinition(
+        identifier=definition_id,
+        name="Assortment",
+        attributes=(
+            AttributeDefinition(
+                name="code",
+                attribute_type=AttributeType.STRING,
+                nullable=False,
+            ),
+            AttributeDefinition(
+                name="name",
+                attribute_type=AttributeType.STRING,
+                nullable=False,
+            ),
+            AttributeDefinition(
+                name="unit",
+                attribute_type=AttributeType.REFERENCE,
+                reference_target="MeasureUnits",
+            ),
+        ),
+    )
+
+    compiler = MetadataCompiler()
+
+    metadata = compiler.compile(definition)
+
+    assert len(metadata.attributes) == 3
+
+    assert metadata.attributes[0].name == "code"
+    assert metadata.attributes[0].attribute_type is AttributeType.STRING
+    assert metadata.attributes[0].nullable is False
+
+    assert metadata.attributes[1].name == "name"
+    assert metadata.attributes[1].attribute_type is AttributeType.STRING
+
+    assert metadata.attributes[2].name == "unit"
+    assert metadata.attributes[2].attribute_type is AttributeType.REFERENCE
+    assert metadata.attributes[2].reference_target == "MeasureUnits"
+
+
+def test_invalid_attribute_fails_compilation() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+        attributes=(
+            AttributeDefinition(
+                name="unit",
+                attribute_type=AttributeType.REFERENCE,
+            ),
+        ),
+    )
+
+    compiler = MetadataCompiler()
+
+    with pytest.raises(DefinitionError):
+        compiler.compile(definition)
+
+
+def test_attribute_compilation_is_deterministic() -> None:
+    definition_id = Identifier.new()
+
+    definition = CatalogDefinition(
+        identifier=definition_id,
+        name="Assortment",
+        attributes=(
+            AttributeDefinition(
+                name="code",
+                attribute_type=AttributeType.STRING,
+                nullable=False,
+            ),
+            AttributeDefinition(
+                name="unit",
+                attribute_type=AttributeType.REFERENCE,
+                reference_target="MeasureUnits",
+            ),
+        ),
+    )
+
+    compiler = MetadataCompiler()
+
+    first = compiler.compile(definition)
+    second = compiler.compile(definition)
+
+    assert first == second

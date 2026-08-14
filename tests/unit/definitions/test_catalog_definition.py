@@ -1,5 +1,6 @@
 import pytest
 
+from accore.platform.definitions.attribute import AttributeDefinition, AttributeType
 from accore.platform.definitions.base import DefinitionType
 from accore.platform.definitions.catalog import CatalogDefinition
 from accore.platform.foundation import DefinitionError, Identifier
@@ -44,3 +45,50 @@ def test_catalog_definition_is_a_definition() -> None:
     )
 
     assert isinstance(catalog, CatalogDefinition)
+
+
+def test_catalog_definition_contains_attributes() -> None:
+    attributes = (
+        AttributeDefinition(
+            name="code",
+            attribute_type=AttributeType.STRING,
+            nullable=False,
+        ),
+        AttributeDefinition(
+            name="name",
+            attribute_type=AttributeType.STRING,
+            nullable=False,
+        ),
+    )
+
+    catalog = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+        attributes=attributes,
+    )
+
+    catalog.validate()
+
+    assert catalog.attributes == attributes
+
+
+def test_catalog_definition_rejects_duplicate_attribute_names() -> None:
+    attributes = (
+        AttributeDefinition(
+            name="code",
+            attribute_type=AttributeType.STRING,
+        ),
+        AttributeDefinition(
+            name="code",
+            attribute_type=AttributeType.STRING,
+        ),
+    )
+
+    catalog = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+        attributes=attributes,
+    )
+
+    with pytest.raises(DefinitionError):
+        catalog.validate()
