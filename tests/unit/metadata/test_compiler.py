@@ -5,6 +5,7 @@ from accore.platform.definitions.attribute import AttributeDefinition, Attribute
 from accore.platform.foundation import DefinitionError, Identifier
 from accore.platform.metadata import MetadataCompiler
 from accore.platform.metadata.catalog import CatalogMetadata
+from accore.platform.metadata.system_field import SystemFieldType
 
 
 def test_catalog_definition_compiles_to_catalog_metadata() -> None:
@@ -150,3 +151,47 @@ def test_attribute_compilation_is_deterministic() -> None:
     second = compiler.compile(definition)
 
     assert first == second
+
+
+def test_catalog_compilation_adds_system_fields() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+    )
+
+    metadata = MetadataCompiler().compile(definition)
+
+    assert [field.name for field in metadata.system_fields] == [
+        "id",
+        "parent_id",
+        "is_folder",
+        "created_at",
+        "updated_at",
+        "deleted",
+        "version",
+    ]
+
+    assert metadata.system_fields[0].field_type is SystemFieldType.ULID
+
+
+def test_system_fields_are_independent_from_definition_attributes() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+        attributes=(
+            AttributeDefinition(
+                name="name",
+                attribute_type=AttributeType.STRING,
+            ),
+        ),
+    )
+
+    metadata = MetadataCompiler().compile(definition)
+
+    system_names = {field.name for field in metadata.system_fields}
+
+    attribute_names = {attribute.name for attribute in metadata.attributes}
+
+    assert "id" in system_names
+    assert "id" not in attribute_names
+    assert "name" in attribute_names

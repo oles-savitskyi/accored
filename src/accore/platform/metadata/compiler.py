@@ -3,6 +3,7 @@ from __future__ import annotations
 from accore.platform.definitions import AttributeDefinition, CatalogDefinition, Definition
 from accore.platform.metadata.attribute import AttributeMetadata
 from accore.platform.metadata.catalog import CatalogMetadata
+from accore.platform.metadata.system_fields import default_catalog_system_fields
 
 
 class MetadataCompiler:
@@ -23,6 +24,7 @@ class MetadataCompiler:
                 identifier=identifier,
                 name=definition.name,
                 source_definition_id=identifier,
+                system_fields=default_catalog_system_fields(),
                 attributes=attributes,
             )
 
