@@ -3,6 +3,7 @@ import pytest
 from accore.platform.foundation import Identifier
 from accore.platform.metadata.catalog import CatalogMetadata
 from accore.platform.metadata.registry import MetadataRegistry
+from accore.platform.runtime.catalog import CatalogRuntime
 from accore.platform.runtime.resolution import RuntimeResolver
 
 
@@ -26,7 +27,8 @@ def test_resolve_registered_metadata() -> None:
 
     resolved = resolver.resolve(metadata.identifier)
 
-    assert resolved is metadata
+    assert isinstance(resolved, CatalogRuntime)
+    assert resolved.metadata is metadata
 
 
 def test_resolve_unknown_metadata_fails() -> None:
@@ -50,8 +52,11 @@ def test_resolve_multiple_metadata_objects() -> None:
 
     resolver = RuntimeResolver(registry)
 
-    assert resolver.resolve(assortment.identifier) is assortment
-    assert resolver.resolve(employees.identifier) is employees
+    assortment_runtime = resolver.resolve(assortment.identifier)
+    employees_runtime = resolver.resolve(employees.identifier)
+
+    assert assortment_runtime.metadata is assortment
+    assert employees_runtime.metadata is employees
 
 
 def test_resolution_does_not_modify_registry() -> None:
@@ -64,6 +69,5 @@ def test_resolution_does_not_modify_registry() -> None:
 
     resolved = resolver.resolve(metadata.identifier)
 
-    assert resolved is metadata
-    assert registry.contains(metadata.identifier)
+    assert resolved.metadata is metadata
     assert registry.get(metadata.identifier) is metadata
