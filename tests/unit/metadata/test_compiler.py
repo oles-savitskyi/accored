@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 import pytest
 
 from accore.platform.definitions import CatalogDefinition
@@ -44,6 +46,19 @@ def test_compilation_is_deterministic() -> None:
     definition = CatalogDefinition(
         identifier=definition_id,
         name="Assortment",
+        attributes=(
+            AttributeDefinition(
+                name="code",
+                attribute_type=AttributeType.STRING,
+                nullable=False,
+                default_value="",
+            ),
+            AttributeDefinition(
+                name="unit",
+                attribute_type=AttributeType.REFERENCE,
+                reference_target="MeasureUnits",
+            ),
+        ),
     )
 
     compiler = MetadataCompiler()
@@ -195,3 +210,121 @@ def test_system_fields_are_independent_from_definition_attributes() -> None:
     assert "id" in system_names
     assert "id" not in attribute_names
     assert "name" in attribute_names
+
+
+def test_compiler_delegates_validation_once() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+        attributes=(),
+    )
+
+    validator = Mock()
+    compiler = MetadataCompiler(validator=validator)
+
+    compiler.compile(definition)
+
+    validator.validate.assert_called_once_with(definition)
+
+
+def test_compiler_preserves_identity() -> None:
+    definition_id = Identifier.new()
+
+    definition = CatalogDefinition(
+        identifier=definition_id,
+        name="Assortment",
+    )
+
+    metadata = MetadataCompiler().compile(definition)
+
+    assert metadata.identifier == definition_id
+    assert metadata.source_definition_id == definition_id
+
+
+def test_compiler_preserves_name() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+    )
+
+    metadata = MetadataCompiler().compile(definition)
+
+    assert metadata.name == "Assortment"
+
+
+def test_compiler_preserves_attribute_properties() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+        attributes=(
+            AttributeDefinition(
+                name="code",
+                attribute_type=AttributeType.STRING,
+                nullable=False,
+                default_value="",
+                description="Item code",
+            ),
+            AttributeDefinition(
+                name="unit",
+                attribute_type=AttributeType.REFERENCE,
+                reference_target="MeasureUnits",
+            ),
+        ),
+    )
+    metadata = MetadataCompiler().compile(definition)
+
+    code = metadata.attributes[0]
+    unit = metadata.attributes[1]
+
+    assert code.name == "code"
+    assert code.attribute_type is AttributeType.STRING
+    assert code.nullable is False
+    assert code.default_value == ""
+    assert code.description == "Item code"
+    assert code.reference_target is None
+
+    assert unit.name == "unit"
+    assert unit.attribute_type is AttributeType.REFERENCE
+    assert unit.nullable is True
+    assert unit.reference_target == "MeasureUnits"
+
+
+def test_compiler_preserves_attribute_order() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+        attributes=(
+            AttributeDefinition(
+                name="name",
+                attribute_type=AttributeType.STRING,
+            ),
+            AttributeDefinition(
+                name="code",
+                attribute_type=AttributeType.STRING,
+            ),
+            AttributeDefinition(
+                name="unit",
+                attribute_type=AttributeType.REFERENCE,
+                reference_target="MeasureUnits",
+            ),
+        ),
+    )
+
+    metadata = MetadataCompiler().compile(definition)
+
+    assert [attribute.name for attribute in metadata.attributes] == [
+        "name",
+        "code",
+        "unit",
+    ]
+
+
+def test_compiler_does_not_introduce_normalized_content() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+    )
+
+    metadata = MetadataCompiler().compile(definition)
+
+    assert metadata.normalized_content == ()

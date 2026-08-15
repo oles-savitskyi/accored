@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from accore.platform.definitions import AttributeDefinition, CatalogDefinition, Definition
+from accore.platform.definitions import (
+    AttributeDefinition,
+    CatalogDefinition,
+    Definition,
+)
 from accore.platform.metadata.attribute import AttributeMetadata
 from accore.platform.metadata.catalog import CatalogMetadata
 from accore.platform.metadata.system_fields import default_catalog_system_fields
@@ -8,7 +12,7 @@ from accore.platform.validation import DefinitionValidator
 
 
 class MetadataCompiler:
-    """Compile configuration definitions into runtime-independent metadata."""
+    """Compile validated configuration definitions into metadata."""
 
     def __init__(
         self,
@@ -20,30 +24,32 @@ class MetadataCompiler:
         self._validator.validate(definition)
 
         if isinstance(definition, CatalogDefinition):
-            identifier = definition.require_identifier()
-
-            definition.validate()
-
-            attributes = tuple(
-                self._compile_attribute(attribute) for attribute in definition.attributes
-            )
-
-            return CatalogMetadata(
-                identifier=identifier,
-                name=definition.name,
-                source_definition_id=identifier,
-                system_fields=default_catalog_system_fields(),
-                attributes=attributes,
-            )
+            return self._compile_catalog(definition)
 
         raise TypeError(f"Unsupported definition type: {type(definition).__name__}")
+
+    def _compile_catalog(
+        self,
+        definition: CatalogDefinition,
+    ) -> CatalogMetadata:
+        identifier = definition.require_identifier()
+
+        attributes = tuple(
+            self._compile_attribute(attribute) for attribute in definition.attributes
+        )
+
+        return CatalogMetadata(
+            identifier=identifier,
+            name=definition.name,
+            source_definition_id=identifier,
+            system_fields=default_catalog_system_fields(),
+            attributes=attributes,
+        )
 
     @staticmethod
     def _compile_attribute(
         definition: AttributeDefinition,
     ) -> AttributeMetadata:
-        definition.validate()
-
         return AttributeMetadata(
             name=definition.name,
             attribute_type=definition.attribute_type,

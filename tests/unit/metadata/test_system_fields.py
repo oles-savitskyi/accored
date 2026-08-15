@@ -1,3 +1,6 @@
+from accore.platform.definitions import CatalogDefinition
+from accore.platform.foundation import Identifier
+from accore.platform.metadata import MetadataCompiler
 from accore.platform.metadata.system_field import SystemFieldType
 from accore.platform.metadata.system_fields import default_catalog_system_fields
 
@@ -34,3 +37,14 @@ def test_only_parent_id_is_nullable() -> None:
     nullable_fields = [field.name for field in fields if field.nullable]
 
     assert nullable_fields == ["parent_id"]
+
+
+def test_compiler_attaches_default_catalog_system_fields() -> None:
+    definition = CatalogDefinition(
+        identifier=Identifier.new(),
+        name="Assortment",
+    )
+
+    metadata = MetadataCompiler().compile(definition)
+
+    assert metadata.system_fields == default_catalog_system_fields()
