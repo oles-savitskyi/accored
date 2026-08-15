@@ -4,13 +4,21 @@ from accore.platform.definitions import AttributeDefinition, CatalogDefinition, 
 from accore.platform.metadata.attribute import AttributeMetadata
 from accore.platform.metadata.catalog import CatalogMetadata
 from accore.platform.metadata.system_fields import default_catalog_system_fields
+from accore.platform.validation import DefinitionValidator
 
 
 class MetadataCompiler:
     """Compile configuration definitions into runtime-independent metadata."""
 
+    def __init__(
+        self,
+        validator: DefinitionValidator | None = None,
+    ) -> None:
+        self._validator = validator or DefinitionValidator()
+
     def compile(self, definition: Definition) -> CatalogMetadata:
-        """Compile a supported definition into metadata."""
+        self._validator.validate(definition)
+
         if isinstance(definition, CatalogDefinition):
             identifier = definition.require_identifier()
 
