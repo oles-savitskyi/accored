@@ -1,441 +1,438 @@
-# RUNTIME_METADATA_API
+# PHASE 2 — RUNTIME METADATA API
 
 ## Status
 
-Planned
+Implemented — Phase 2 current state
 
 ## Baseline
 
-implementation-0.3
+implementation-0.2
+
+## Purpose
+
+The Runtime Metadata API defines the metadata contract consumed by
+runtime objects after metadata compilation and runtime resolution.
+
+The API establishes the boundary between Runtime and Metadata.
+
+Runtime components consume compiled metadata.
+
+They do not consume configuration definitions or compiler internals.
 
 ---
 
-# 1. Purpose
+# 1. Architectural Position
 
-The purpose of the Runtime Metadata API is to define how runtime components access metadata produced by the Metadata Layer.
+The Runtime Metadata API is positioned after metadata compilation and
+runtime resolution.
 
-The Runtime Metadata API provides a stable contract between Runtime and Metadata while preserving the architectural separation established by the AcCoreD Platform.
-
-Runtime components consume metadata.
-
-They never consume definitions directly.
-
----
-
-# 2. Architectural Position
-
-The Runtime Metadata API is the boundary between Runtime Layer and Metadata Layer.
-
-```text id="3om0oq"
-Definition Layer
+```text
+Configuration Definition
         ↓
-Compiler Layer
+MetadataCompiler
         ↓
-Metadata Layer
+CatalogMetadata
         ↓
-Registry Layer
+MetadataRegistry
         ↓
-Runtime Metadata API
+RuntimeResolver
         ↓
-Runtime Layer
-```
+CatalogRuntime
+        ↓
+CatalogMetadata
+The runtime object operates on compiled metadata.
 
-The API provides controlled access to metadata structures without exposing compiler implementation details.
+The registry and resolver belong to the metadata-to-runtime binding
+process and are not part of the runtime object's metadata contract.
 
----
+2. Current Runtime Metadata Contract
 
-# 3. Design Principles
+The current Phase 2 runtime metadata contract is represented by
+CatalogMetadata.
 
-## Metadata-Centric
+CatalogRuntime
+      │
+      ▼
+CatalogMetadata
+      │
+      ├── identifier
+      ├── metadata_type
+      ├── name
+      ├── source_definition_id
+      ├── normalized_content
+      ├── system_fields
+      └── attributes
 
-Runtime operates on metadata.
+CatalogMetadata is immutable.
 
-Definitions are not available through the Runtime Metadata API.
+Runtime components may inspect the metadata but must not modify it.
 
----
+3. Metadata Identity
 
-## Read-Only Access
+CatalogMetadata provides metadata identity information through the
+following metadata fields:
 
-Metadata exposed through the Runtime API is immutable.
+identifier;
+metadata_type;
+name;
+source_definition_id.
 
-Runtime components may inspect metadata but may not modify it.
+These values identify the metadata object and its source definition.
 
----
+The runtime does not use the original definition object.
 
-## Runtime Independence
+4. Attribute Metadata
 
-Metadata remains independent of runtime implementation.
+CatalogMetadata.attributes contains the compiled attribute metadata
+for the catalog.
 
-The API is a consumer contract rather than an ownership boundary.
+Each item is represented by AttributeMetadata.
 
----
+CatalogMetadata
+      ↓
+attributes
+      ↓
+AttributeMetadata
 
-## Stable Contract
+AttributeMetadata currently exposes:
 
-The Runtime Metadata API should remain stable even when compiler internals evolve.
+name;
+attribute_type;
+nullable;
+default_value;
+description;
+reference_target.
 
----
+The metadata describes the attribute.
 
-## Consistency
+It does not contain runtime attribute values.
 
-The same access patterns should apply to all metadata-driven object types.
+5. Attribute Ordering
 
----
+Attribute order is preserved during compilation.
 
-# 4. Runtime Metadata Flow
+The order of CatalogDefinition.attributes is transferred to
+CatalogMetadata.attributes.
 
-Metadata reaches runtime through the standard platform pipeline.
+Therefore metadata consumers may rely on deterministic attribute
+ordering within a compiled metadata object.
 
-```text id="oflkv1"
+Attribute lookup by name is not currently a separate runtime API.
+
+Such an API may be introduced later without changing the underlying
+metadata model.
+
+6. System Field Metadata
+
+CatalogMetadata.system_fields contains the platform-defined system
+fields of the catalog.
+
+CatalogMetadata
+      ↓
+system_fields
+      ↓
+SystemFieldMetadata
+
+System fields are platform-owned metadata.
+
+They are not supplied by the Standard Configuration definition.
+
+The current Phase 2 compiler provides the default catalog system field
+set during metadata compilation.
+
+7. Validation Metadata
+
+Validation is currently performed during definition validation and
+metadata compilation.
+
+The current CatalogMetadata model does not yet expose a dedicated
+validation metadata collection.
+
+Therefore validation rules are not part of the current Runtime Metadata
+API.
+
+Future phases may introduce explicit validation metadata.
+
+Such an extension must preserve the separation between:
+
+Validation Metadata
+        ≠
+Validation Execution
+8. Reference Metadata
+
+Reference attributes are represented by AttributeMetadata.
+
+For a reference attribute:
+
+attribute_type = REFERENCE
+reference_target = <target metadata name>
+
+The current runtime metadata contract therefore exposes reference
+information as metadata.
+
+Reference resolution itself is outside the current Phase 2 scope.
+
+The Runtime Metadata API must not imply that reference resolution is
+already implemented.
+
+9. Runtime Metadata Isolation
+
+Runtime objects must not depend on:
+
 Definition
-        ↓
-Compiler
-        ↓
-Metadata
-        ↓
-Registry
-        ↓
-Resolver
-        ↓
-Runtime
-```
-
-The Runtime Metadata API begins after runtime resolution.
-
----
-
-# 5. Runtime Metadata Access
-
-Runtime objects access metadata through explicit API methods.
-
-Conceptually:
-
-```text id="0w4hr2"
-Runtime Object
-        ↓
-Metadata API
-        ↓
-Metadata
-```
-
-Direct access to compiler artifacts is prohibited.
-
----
-
-# 6. Metadata Identity Access
-
-Runtime components must be able to access metadata identity information.
-
-Conceptually:
-
-```text id="t2m2md"
-runtime.metadata_identity()
-```
-
-The returned information may include:
-
-```text id="owq06r"
-Object Type
-
-Name
-
-Version
-```
-
-Identity access supports diagnostics, tracing and dependency resolution.
-
----
-
-# 7. Attribute Access
-
-Runtime components must be able to enumerate metadata attributes.
-
-Conceptually:
-
-```text id="h6ctgr"
-runtime.attributes()
-```
-
-Expected result:
-
-```text id="1ndqu2"
-Attribute Metadata Collection
-```
-
-The API returns metadata rather than runtime values.
-
----
-
-# 8. Individual Attribute Access
-
-Runtime components must be able to retrieve a specific attribute.
-
-Conceptually:
-
-```text id="h0j2sp"
-runtime.attribute("name")
-```
-
-Expected result:
-
-```text id="zw5ngd"
-Attribute Metadata
-```
-
-If the attribute does not exist the implementation should return a controlled error.
-
----
-
-# 9. Attribute Discovery
-
-Runtime components must support metadata inspection.
-
-Examples:
-
-```text id="2dgv2d"
-List Attributes
-
-Check Attribute Existence
-
-Inspect Attribute Type
-
-Inspect Attribute Metadata
-```
-
-The Runtime Metadata API supports introspection.
-
----
-
-# 10. System Field Access
-
-Runtime components must be able to inspect platform-managed fields.
-
-Conceptually:
-
-```text id="f9v4mk"
-runtime.system_fields()
-```
-
-Expected result:
-
-```text id="x5sruv"
-System Field Metadata Collection
-```
-
-System fields are exposed through metadata but remain platform-owned.
-
----
-
-# 11. Validation Rule Access
-
-Runtime components must be able to inspect validation metadata.
-
-Conceptually:
-
-```text id="m00s0z"
-runtime.validation_rules()
-```
-
-Expected result:
-
-```text id="pww0o7"
-Validation Metadata Collection
-```
-
-The API exposes validation descriptions only.
-
-Validation execution remains a separate concern.
-
----
-
-# 12. Metadata Navigation
-
-Runtime components must be able to navigate metadata structure.
-
-Examples:
-
-```text id="j4dgw5"
-Metadata
-    ↓
-Attributes
-
-Metadata
-    ↓
-System Fields
-
-Metadata
-    ↓
-Validation Rules
-```
-
-Navigation is read-only.
-
----
-
-# 13. Reference Metadata Access
-
-Runtime components must be able to inspect reference attributes.
-
-Conceptually:
-
-```text id="elc1bo"
-runtime.attribute("unit")
-```
-
-Expected metadata may include:
-
-```text id="vpp5rf"
-Reference Type
-
-Target Metadata
-
-Reference Information
-```
-
-Reference resolution behavior is outside the scope of implementation-0.3.
-
----
-
-# 14. Runtime Metadata Isolation
-
-Runtime components must never access:
-
-```text id="mqxehd"
-Definitions
-
-Compiler Internals
-
+MetadataCompiler
 Compiler State
-
 Compilation Context
-```
 
-Only compiled metadata is visible.
+The runtime receives compiled metadata.
+
+The architectural dependency is:
+
+Runtime
+   ↓
+Metadata
+
+and not:
+
+Runtime
+   ↓
+Compiler
+   ↓
+Definition
 
 This separation is mandatory.
 
----
+10. Registry and Resolver Independence
 
-# 15. Registry Independence
+The runtime object does not interact directly with the metadata registry.
 
-Runtime objects must not interact directly with registry internals.
+The current flow is:
 
-Conceptually:
-
-```text id="11y5iy"
-Registry
+MetadataRegistry
         ↓
-Resolver
+RuntimeResolver
         ↓
-Runtime
-```
+CatalogRuntime
 
-After resolution, runtime operates exclusively through metadata APIs.
+The resolver obtains metadata from the registry and creates the
+appropriate runtime object.
 
----
+After construction, CatalogRuntime operates through its metadata
+reference.
 
-# 16. Error Handling
+Registry internals are not exposed through the runtime object.
 
-Metadata access failures must be deterministic.
+11. Runtime Object Contract
 
-Examples:
+The current Phase 2 runtime object for catalogs is:
 
-```text id="c6sx7v"
-Unknown Attribute
+CatalogRuntime
 
-Missing Metadata
+Its metadata contract is:
 
-Invalid Metadata Identity
-```
+CatalogRuntime.metadata
 
-Errors must be explicit and predictable.
+which contains a CatalogMetadata instance.
 
-Silent failures are not permitted.
+The runtime object does not recreate, transform, or reinterpret the
+definition.
 
----
+The compiled metadata is the authoritative metadata representation
+available to the runtime object.
 
-# 17. Extensibility
+12. Read-Only Metadata
 
-The Runtime Metadata API is expected to support future metadata types.
+Metadata objects are immutable.
 
-Examples:
+The current metadata model uses immutable dataclasses.
 
-```text id="ysx20m"
-Document Metadata
+This applies to:
 
-Register Metadata
+Metadata;
+CatalogMetadata;
+AttributeMetadata;
+SystemFieldMetadata.
 
-Report Metadata
+Runtime components therefore consume metadata as read-only structures.
 
-Workflow Metadata
-```
+Metadata mutation is outside the Runtime Metadata API.
 
-The same access patterns should apply wherever possible.
+13. Current API Surface
 
----
+The currently implemented runtime metadata surface is intentionally
+minimal.
 
-# 18. Runtime Responsibilities
+CatalogRuntime
+    └── metadata: CatalogMetadata
 
-Runtime components are responsible for:
 
-* metadata inspection;
-* metadata navigation;
-* metadata consumption;
-* runtime behavior.
+CatalogMetadata
+    ├── identifier
+    ├── metadata_type
+    ├── name
+    ├── source_definition_id
+    ├── normalized_content
+    ├── system_fields
+    └── attributes
 
-Runtime components are not responsible for:
+No additional runtime metadata navigation API is required at this
+stage.
 
-* metadata creation;
-* metadata compilation;
-* metadata registration;
-* metadata mutation.
+In particular, the following are future extensions rather than current
+contract requirements:
 
----
+runtime.attribute(name)
+runtime.has_attribute(name)
+runtime.attributes()
+runtime.system_fields()
+runtime.validation_rules()
 
-# 19. Architectural Constraints
+The underlying metadata collections already exist where implemented,
+but dedicated runtime convenience methods are not yet part of the
+Phase 2 contract.
+
+14. Error Handling
+
+Metadata and runtime resolution errors must remain explicit and
+deterministic.
+
+The current runtime boundary includes controlled handling of:
+
+missing metadata;
+unsupported metadata/runtime types;
+invalid runtime resolution requests.
+
+Attribute-level lookup errors are not currently part of the runtime API
+because dedicated attribute lookup methods have not yet been introduced.
+
+Future lookup APIs must define explicit behavior for unknown attributes.
+
+15. Extensibility
+
+The Runtime Metadata API is designed to support future metadata types.
+
+Potential future metadata types include:
+
+DocumentMetadata
+RegisterMetadata
+ReportMetadata
+WorkflowMetadata
+
+The same architectural principle should remain applicable:
+
+Metadata
+    ↓
+Runtime Object
+
+Runtime objects consume compiled metadata without depending on the
+configuration definition or compiler implementation.
+
+16. Responsibilities
+Runtime is responsible for
+consuming metadata;
+exposing runtime behavior;
+using metadata to drive runtime behavior;
+preserving metadata/runtime separation.
+Runtime is not responsible for
+creating metadata;
+compiling definitions;
+registering metadata;
+validating definitions;
+mutating metadata.
+17. Architectural Constraints
 
 The following constraints are mandatory:
 
-```text id="0k33av"
 Runtime depends on Metadata.
+
 
 Metadata does not depend on Runtime.
 
+
 Runtime does not depend on Compiler.
+
 
 Runtime does not depend on Definitions.
 
+
+Runtime does not depend on Registry internals.
+
+
 Metadata remains immutable.
-```
 
-These constraints preserve architectural separation.
+These constraints preserve the separation established by the Metadata
+and Runtime architectures.
 
----
+18. Phase 2 Boundary
 
-# 20. Future Extensions
+The current Runtime Metadata API intentionally stops at the metadata
+consumption boundary.
 
-Future versions of the Runtime Metadata API may introduce:
+Phase 2 establishes:
 
-```text id="wtgkzh"
-Metadata Query API
+Definition
+    ↓
+Compilation
+    ↓
+Metadata
+    ↓
+Registration
+    ↓
+Resolution
+    ↓
+Runtime
 
+It does not yet establish:
+
+Runtime Attribute API
+Runtime Validation API
 Reference Resolution API
+Runtime Schema Query API
+Runtime Data Access API
 
-Schema Navigation API
+Those capabilities belong to subsequent implementation stages.
 
-Validation Execution Integration
+19. Acceptance Criteria
 
-Dynamic Runtime Services
-```
+The Runtime Metadata API is considered implemented for the current
+Phase 2 scope when:
 
-Such extensions must remain compatible with the principles defined in this document.
+a catalog definition can be compiled into CatalogMetadata;
+the metadata can be registered;
+the metadata can be resolved into CatalogRuntime;
+CatalogRuntime exposes its compiled metadata;
+attributes are available through CatalogMetadata.attributes;
+system fields are available through CatalogMetadata.system_fields;
+reference metadata is preserved;
+runtime has no dependency on definitions;
+runtime has no dependency on compiler internals;
+metadata remains immutable;
+the Phase 2 vertical slice passes.
+20. Architectural Outcome
 
----
+Phase 2 establishes the first concrete metadata-driven runtime boundary.
 
-# 21. Architectural Outcome
+The resulting architecture is:
 
-The Runtime Metadata API establishes a stable and explicit contract between Runtime and Metadata.
+Configuration Definition
+        ↓
+MetadataCompiler
+        ↓
+CatalogMetadata
+        ↓
+MetadataRegistry
+        ↓
+RuntimeResolver
+        ↓
+CatalogRuntime
+        ↓
+CatalogMetadata
 
-After implementation-0.3 runtime components will be capable of inspecting attributes, system fields and validation metadata without any dependency on definitions or compiler internals.
+The runtime no longer requires knowledge of the configuration definition
+that produced it.
 
-This API becomes the primary mechanism through which runtime behavior is driven by metadata and represents a critical step toward a fully metadata-driven platform architecture.
+Compiled metadata becomes the authoritative contract between the
+metadata layer and the runtime layer.
+
+This provides the foundation for future runtime APIs for attributes,
+validation, references, documents, registers and reporting.
