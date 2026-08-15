@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented — Phase 2 current state
+Design Ready — Implementation Next
 
 ## Baseline
 

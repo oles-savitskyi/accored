@@ -2,7 +2,23 @@
 
 ## Status
 
-Planned
+Implemented
+
+## Implementation Status
+
+Metadata Compiler v2 has been implemented and passed the Compiler v2
+Review Gate.
+
+The compiler currently supports:
+
+* definition validation delegation;
+* CatalogDefinition compilation;
+* AttributeDefinition → AttributeMetadata transformation;
+* standard catalog system-field injection;
+* deterministic metadata construction;
+* unsupported-definition rejection.
+
+Validation metadata compilation is not implemented yet.
 
 ## Baseline
 

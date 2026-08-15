@@ -22,6 +22,25 @@ Its responsibility is limited to describing validation constraints as metadata.
 
 Validation execution is a future platform concern.
 
+## Current Implementation Status
+
+The current implementation establishes definition-level validation.
+
+It validates:
+
+* definition structure;
+* attribute structure;
+* duplicate attribute names;
+* reference target requirements;
+* semantic compatibility of default values.
+
+Validation rules are not yet compiled into Metadata.
+
+Therefore this document distinguishes:
+
+1. Definition Validation — implemented;
+2. Validation Metadata — planned;
+3. Validation Execution — outside the current scope.
 ---
 
 # 2. Architectural Position

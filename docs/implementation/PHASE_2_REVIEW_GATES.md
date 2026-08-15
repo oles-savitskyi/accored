@@ -2,7 +2,21 @@
 
 ## Status
 
-Planned
+Active
+
+## Current Gate State
+
+Completed:
+
+* Attribute Model review;
+* System Fields review;
+* Definition Validation review;
+* Metadata Compiler v2 review;
+* Compiler v2 vertical integration review.
+
+Next:
+
+* Runtime Metadata API Review Gate.
 
 ## Baseline
 

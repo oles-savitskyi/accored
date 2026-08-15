@@ -146,16 +146,26 @@ Runtime Resolver
 Runtime Layer
 ```
 
-Metadata objects become structured entities composed of:
+## Current Metadata Model
 
-```text
+The current implementation provides:
+
+Metadata
+    ├── Identity
+    ├── Attributes
+    └── System Fields
+
+## Target Metadata Model
+
+The intended Phase 2 metadata model is expected to evolve toward:
+
 Metadata
     ├── Identity
     ├── System Fields
     ├── Attributes
-    ├── Validation Rules
+    ├── Validation Metadata
     └── Version Information
-```
+
 
 ---
 

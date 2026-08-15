@@ -432,3 +432,21 @@ The Metadata Model establishes a common structural language for the entire AcCor
 After implementation-0.3, business objects should be represented as immutable metadata structures independent of runtime implementation details.
 
 This model becomes the foundation for all future platform object types and serves as the central architectural contract between Definitions, Registry and Runtime.
+
+## Current Implementation Boundary
+
+The current implementation of the Metadata Model provides:
+
+* immutable metadata identity;
+* metadata type;
+* source definition identity;
+* catalog attributes;
+* catalog system fields.
+
+The following elements remain future extensions of the current model:
+
+* validation metadata;
+* metadata versioning;
+* metadata composition;
+* extension metadata;
+* additional metadata object types.

@@ -4,7 +4,11 @@
 
 ## Status
 
-Planned
+VS-002A — Rich Catalog Metadata Compilation
+        ✓ Completed
+
+VS-002B — Runtime Metadata Inspection
+        → Next
 
 ## Baseline
 

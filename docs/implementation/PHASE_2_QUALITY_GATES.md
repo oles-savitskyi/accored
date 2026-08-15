@@ -2,7 +2,25 @@
 
 ## Status
 
-Planned
+Active
+
+## Current Quality State
+
+The current implementation satisfies the technical quality requirements
+for the implemented Phase 2 components:
+
+* Attribute Model;
+* System Fields Model;
+* Definition Validation;
+* Metadata Compiler v2;
+* Registry integration;
+* Runtime resolution;
+* Phase 2 vertical integration.
+
+The Runtime Metadata API quality requirements remain open.
+
+Validation Metadata quality requirements remain deferred until the
+corresponding metadata model is implemented.
 
 ## Baseline
 

@@ -112,7 +112,7 @@ The milestone consists of the following workstreams.
 
 ## 4.1 Attribute Model
 
-Status: Planned
+Status: Completed
 
 Deliver:
 
@@ -134,7 +134,7 @@ ATTRIBUTE_MODEL.md
 
 ## 4.2 Metadata Model
 
-Status: Planned
+Status: Completed
 
 Deliver:
 
@@ -157,7 +157,7 @@ METADATA_MODEL.md
 
 ## 4.3 System Fields
 
-Status: Planned
+Status: Completed
 
 Deliver:
 
@@ -181,7 +181,7 @@ SYSTEM_FIELDS_MODEL.md
 
 ## 4.4 Validation Metadata
 
-Status: Planned
+Status: Completed
 
 Deliver metadata representations for:
 
@@ -207,7 +207,7 @@ VALIDATION_MODEL.md
 
 ## 4.5 Metadata Compiler V2
 
-Status: Planned
+Status: Completed
 
 Extend the compiler with:
 
@@ -235,7 +235,7 @@ METADATA_COMPILER_V2.md
 
 ## 4.6 Runtime Metadata API
 
-Status: Planned
+Status: Next
 
 Provide read-only runtime access to:
 
@@ -298,6 +298,25 @@ Document:
 ```text id="2p8x4m"
 VERTICAL_SLICE_002.md
 ```
+
+---
+
+## Current Implementation State
+
+The current implementation-0.3 state establishes the first executable
+Metadata Model consisting of:
+
+* metadata identity;
+* business attributes;
+* system fields;
+* definition-level structural and semantic validation;
+* deterministic metadata compilation;
+* metadata registration;
+* runtime resolution.
+
+Validation metadata is not yet represented as a compiled metadata component.
+
+The Runtime Metadata API is the next implementation step.
 
 ---
 
