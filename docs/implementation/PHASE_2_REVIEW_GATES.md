@@ -536,3 +536,24 @@ Runtime executes.
 ```
 
 No layer may assume responsibilities belonging to another layer.
+
+## Compiler v2 Review Gate
+
+Status: APPROVED
+
+Date: 2026-08-15
+
+Implementation baseline:
+implementation-0.2 + Phase 2 Compiler v2
+
+Validation:
+- 115 tests passed
+- ruff clean
+- black clean
+- mypy clean
+
+Vertical Slice:
+Phase 2 vertical slice passed
+
+Decision:
+Approved for Runtime Metadata API implementation.
