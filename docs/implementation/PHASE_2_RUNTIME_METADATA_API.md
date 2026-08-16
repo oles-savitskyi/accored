@@ -2,7 +2,20 @@
 
 ## Status
 
-Design Ready — Implementation Next
+Implementation
+
+## Current Implementation Scope
+
+The first implementation increment provides read-only access to:
+
+* catalog metadata;
+* metadata attributes;
+* individual attributes;
+* attribute existence;
+* system fields.
+
+Validation metadata, reference resolution, metadata versioning and
+runtime data access are outside this implementation increment.
 
 ## Baseline
 
