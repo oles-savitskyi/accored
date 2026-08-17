@@ -1,3 +1,7 @@
+from accore.platform.configuration.activation import (
+    ActiveConfiguration,
+    ConfigurationActivator,
+)
 from accore.platform.configuration.candidate import ConfigurationCandidate
 from accore.platform.configuration.identity import (
     ConfigurationIdentity,
@@ -11,6 +15,8 @@ from accore.platform.configuration.validator import (
 )
 
 __all__ = [
+    "ActiveConfiguration",
+    "ConfigurationActivator",
     "ConfigurationCandidate",
     "ConfigurationIdentity",
     "ConfigurationLifecycleState",
