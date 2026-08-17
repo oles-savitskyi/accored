@@ -9,6 +9,10 @@ from accore.platform.configuration.identity import (
 )
 from accore.platform.configuration.lifecycle import ConfigurationLifecycleState
 from accore.platform.configuration.loader import ConfigurationLoader
+from accore.platform.configuration.runtime_binding import (
+    RuntimeConfigurationBinding,
+    RuntimeConfigurationBindingError,
+)
 from accore.platform.configuration.validator import (
     ConfigurationValidationError,
     ConfigurationValidator,
@@ -24,4 +28,6 @@ __all__ = [
     "ConfigurationValidationError",
     "ConfigurationValidator",
     "ConfigurationVersion",
+    "RuntimeConfigurationBinding",
+    "RuntimeConfigurationBindingError",
 ]

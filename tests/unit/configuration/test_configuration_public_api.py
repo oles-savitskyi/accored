@@ -8,6 +8,8 @@ from accore.platform.configuration import (
     ConfigurationValidationError,
     ConfigurationValidator,
     ConfigurationVersion,
+    RuntimeConfigurationBinding,
+    RuntimeConfigurationBindingError,
 )
 
 
@@ -21,6 +23,8 @@ def test_configuration_public_api() -> None:
     assert ConfigurationValidationError is not None
     assert ConfigurationValidator is not None
     assert ConfigurationVersion is not None
+    assert RuntimeConfigurationBinding is not None
+    assert RuntimeConfigurationBindingError is not None
 
 
 def test_configuration_public_api_exports() -> None:
@@ -36,4 +40,6 @@ def test_configuration_public_api_exports() -> None:
         "ConfigurationValidationError",
         "ConfigurationValidator",
         "ConfigurationVersion",
+        "RuntimeConfigurationBinding",
+        "RuntimeConfigurationBindingError",
     ]
