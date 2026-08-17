@@ -72,24 +72,61 @@ The object should be immutable at the object level.
 
 The registry ownership semantics must remain consistent with the activation boundary design.
 
-5. ConfigurationActivator
+## 5. ConfigurationActivator
 
 Introduce:
 
+```python
 class ConfigurationActivator:
     def activate(
         self,
         candidate: ConfigurationCandidate,
     ) -> ActiveConfiguration:
         ...
+```
 
+`ConfigurationActivator` is responsible for creating an `ActiveConfiguration` from a validated `ConfigurationCandidate`.
 
-    def current(self) -> ActiveConfiguration | None:
-        ...
+Activation does not make the candidate itself active and does not change the lifecycle state of the candidate.
 
-The activator should maintain the current active configuration in memory.
+The activator does **not** own the currently active runtime configuration.
+
+The resulting `ActiveConfiguration` is published to the runtime through `RuntimeConfigurationBinding`, which owns the current runtime configuration snapshot.
+
+Conceptually:
+
+```text
+ConfigurationCandidate
+        │
+        │ activate
+        ▼
+ConfigurationActivator
+        │
+        │ creates
+        ▼
+ActiveConfiguration
+        │
+        │ bind
+        ▼
+RuntimeConfigurationBinding
+        │
+        │ owns current snapshot
+        ▼
+Runtime Consumers
+```
+
+`ConfigurationActivator` must not:
+
+* maintain a separate `current` configuration;
+* expose `current()`;
+* mutate the source `ConfigurationCandidate`;
+* persist the active configuration;
+* perform runtime metadata resolution.
 
 No persistence is required.
+
+The activation boundary is therefore responsible for **producing** the runtime configuration snapshot, while `RuntimeConfigurationBinding` is responsible for **owning and exposing** the currently published snapshot.
+
 
 6. Activation Preconditions
 
