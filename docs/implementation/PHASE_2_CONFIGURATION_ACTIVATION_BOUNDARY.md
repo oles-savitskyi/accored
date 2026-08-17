@@ -36,6 +36,7 @@ Validation does not activate a configuration.
 
 Loading does not activate a configuration.
 
+Activation creates the runtime snapshot; binding owns the current runtime snapshot; resolution consumes it.
 ---
 
 ## 2. Architectural Position
@@ -64,10 +65,16 @@ VALIDATED Candidate
 Configuration Activation Boundary
         │
         ▼
-ACTIVE Configuration
+ActiveConfiguration
         │
         ▼
-Runtime Resolution
+RuntimeConfigurationBinding
+        │
+        ▼
+MetadataResolver
+        │
+        ▼
+Runtime
 
 Each stage has a distinct responsibility.
 
@@ -188,17 +195,64 @@ It does not load configuration sources.
 
 Its purpose is to provide a stable configuration snapshot to runtime consumers.
 
-6. Active Configuration Ownership
 
-The activation boundary owns the currently published active configuration.
+The ConfigurationActivator is responsible for activation and publication of the active configuration. RuntimeConfigurationBinding is responsible for exposing the selected ActiveConfiguration to runtime consumers.
 
-Conceptually:
+6. Ownership of Active Configuration
 
+The v1.0 configuration lifecycle separates activation from runtime ownership.
+
+`ConfigurationActivator` owns the activation transition. Its responsibility is to
+validate activation preconditions and produce a new `ActiveConfiguration`
+snapshot.
+
+`ConfigurationActivator` does not own the currently active runtime
+configuration and does not serve as the runtime source of truth.
+
+`RuntimeConfigurationBinding` owns the currently active runtime configuration.
+Its responsibility is to publish an `ActiveConfiguration` as the current
+runtime snapshot and to provide that snapshot to runtime consumers.
+
+Therefore:
+
+- `ConfigurationActivator` owns activation;
+- `ActiveConfiguration` represents the immutable runtime snapshot;
+- `RuntimeConfigurationBinding` owns the current runtime snapshot;
+- runtime consumers obtain the current configuration through
+  `RuntimeConfigurationBinding`, directly or through runtime resolution
+  services.
+
+The system must not maintain two independent sources of truth for the current
+runtime configuration.
+
+The following distinction is normative:
+
+    activate()
+        = produce an ActiveConfiguration snapshot
+
+    bind()
+        = make an ActiveConfiguration snapshot the current runtime configuration
+
+Binding an `ActiveConfiguration` does not constitute another lifecycle
+transition of `ConfigurationCandidate` and does not perform activation again.
+
+ConfigurationCandidate
+        │
+        │ activate
+        ▼
 ConfigurationActivator
-    │
-    └── current active configuration
-
-The activator is the authoritative owner of the activation state at this stage of the implementation.
+        │
+        │ produces
+        ▼
+ActiveConfiguration
+        │
+        │ bind
+        ▼
+RuntimeConfigurationBinding
+        │
+        │ current snapshot
+        ▼
+Runtime Consumers
 
 A separate runtime container is not introduced by Step 5.
 
@@ -399,7 +453,7 @@ ConfigurationCandidate	Isolated configuration prepared for possible activation
 ActiveConfiguration	Configuration snapshot currently published to runtime
 ConfigurationActivator	Boundary responsible for publication
 MetadataRegistry	Collection of compiled metadata
-RuntimeResolver	Resolves runtime objects against active metadata
+MetadataResolver	Resolves runtime objects against active metadata
 
 A candidate is therefore not the same thing as the active runtime configuration.
 
@@ -465,6 +519,16 @@ Failed activation does not replace the current active configuration.
 The previous active configuration is not mutated during replacement.
 Active configuration identity and version come from the activated candidate.
 Configuration construction and runtime resolution remain separate concerns.
+
+### Runtime Configuration Ownership Invariant
+
+There is exactly one runtime ownership boundary for the current
+`ActiveConfiguration`: `RuntimeConfigurationBinding`.
+
+`ConfigurationActivator` may produce `ActiveConfiguration` instances but must
+not maintain an independent current-runtime reference that competes with
+`RuntimeConfigurationBinding`.
+
 21. Resulting Model
 
 The complete v1.0 model is:
