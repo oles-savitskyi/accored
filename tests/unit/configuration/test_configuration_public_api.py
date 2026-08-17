@@ -8,8 +8,11 @@ from accore.platform.configuration import (
     ConfigurationValidationError,
     ConfigurationValidator,
     ConfigurationVersion,
+    MetadataResolutionError,
+    MetadataResolver,
     RuntimeConfigurationBinding,
     RuntimeConfigurationBindingError,
+    RuntimeConfigurationError,
 )
 
 
@@ -23,8 +26,11 @@ def test_configuration_public_api() -> None:
     assert ConfigurationValidationError is not None
     assert ConfigurationValidator is not None
     assert ConfigurationVersion is not None
+    assert MetadataResolutionError is not None
+    assert MetadataResolver is not None
     assert RuntimeConfigurationBinding is not None
     assert RuntimeConfigurationBindingError is not None
+    assert RuntimeConfigurationError is not None
 
 
 def test_configuration_public_api_exports() -> None:
@@ -40,6 +46,9 @@ def test_configuration_public_api_exports() -> None:
         "ConfigurationValidationError",
         "ConfigurationValidator",
         "ConfigurationVersion",
+        "MetadataResolutionError",
+        "MetadataResolver",
         "RuntimeConfigurationBinding",
         "RuntimeConfigurationBindingError",
+        "RuntimeConfigurationError",
     ]

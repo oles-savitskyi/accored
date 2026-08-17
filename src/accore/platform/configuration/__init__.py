@@ -9,6 +9,11 @@ from accore.platform.configuration.identity import (
 )
 from accore.platform.configuration.lifecycle import ConfigurationLifecycleState
 from accore.platform.configuration.loader import ConfigurationLoader
+from accore.platform.configuration.resolver import (
+    MetadataResolutionError,
+    MetadataResolver,
+    RuntimeConfigurationError,
+)
 from accore.platform.configuration.runtime_binding import (
     RuntimeConfigurationBinding,
     RuntimeConfigurationBindingError,
@@ -28,6 +33,9 @@ __all__ = [
     "ConfigurationValidationError",
     "ConfigurationValidator",
     "ConfigurationVersion",
+    "MetadataResolutionError",
+    "MetadataResolver",
     "RuntimeConfigurationBinding",
     "RuntimeConfigurationBindingError",
+    "RuntimeConfigurationError",
 ]
