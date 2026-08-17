@@ -135,15 +135,17 @@ Activation must not require converting a candidate into a permanently mutable ac
 
 The v1.0 lifecycle is:
 
-LOADED
-   │
-   │ validate
-   ▼
-VALIDATED
-   │
-   │ activate
-   ▼
-ACTIVE
+LOADED Candidate
+       │
+       │ validate
+       ▼
+VALIDATED Candidate
+       │
+       │ activate
+       ▼
+ActiveConfiguration
+
+ACTIVE is not a lifecycle state transition of ConfigurationCandidate. Activation produces a separate ActiveConfiguration representing the runtime-visible configuration snapshot.
 
 The following transitions are not part of v1.0:
 
