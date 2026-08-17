@@ -27,3 +27,7 @@ class MetadataRegistry:
     def contains(self, identifier: Identifier) -> bool:
         """Return whether metadata is registered."""
         return identifier in self._metadata
+
+    def all(self) -> tuple[Metadata, ...]:
+        """Return all registered metadata."""
+        return tuple(self._metadata.values())

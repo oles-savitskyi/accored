@@ -21,3 +21,12 @@ class ConfigurationCandidate:
         default=ConfigurationLifecycleState.LOADED,
         init=False,
     )
+
+    def mark_validated(self) -> None:
+        """Mark the candidate as validated."""
+        if self.state is not ConfigurationLifecycleState.LOADED:
+            raise ValueError(
+                f"Candidate cannot transition to VALIDATED from " f"{self.state.value!r}."
+            )
+
+        self.state = ConfigurationLifecycleState.VALIDATED

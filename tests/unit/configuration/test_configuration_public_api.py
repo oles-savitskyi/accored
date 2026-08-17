@@ -21,5 +21,7 @@ def test_configuration_public_api_exports() -> None:
         "ConfigurationIdentity",
         "ConfigurationLifecycleState",
         "ConfigurationLoader",
+        "ConfigurationValidationError",
+        "ConfigurationValidator",
         "ConfigurationVersion",
     ]
