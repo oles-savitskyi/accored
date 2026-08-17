@@ -20,5 +20,6 @@ def test_configuration_public_api_exports() -> None:
         "ConfigurationCandidate",
         "ConfigurationIdentity",
         "ConfigurationLifecycleState",
+        "ConfigurationLoader",
         "ConfigurationVersion",
     ]

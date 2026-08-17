@@ -4,10 +4,12 @@ from accore.platform.configuration.identity import (
     ConfigurationVersion,
 )
 from accore.platform.configuration.lifecycle import ConfigurationLifecycleState
+from accore.platform.configuration.loader import ConfigurationLoader
 
 __all__ = [
     "ConfigurationCandidate",
     "ConfigurationIdentity",
     "ConfigurationLifecycleState",
+    "ConfigurationLoader",
     "ConfigurationVersion",
 ]
