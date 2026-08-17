@@ -1,4 +1,5 @@
 from accore.platform.configuration import (
+    ConfigurationCandidate,
     ConfigurationIdentity,
     ConfigurationLifecycleState,
     ConfigurationVersion,
@@ -6,15 +7,17 @@ from accore.platform.configuration import (
 
 
 def test_configuration_public_api() -> None:
+    assert ConfigurationCandidate is not None
     assert ConfigurationIdentity is not None
-    assert ConfigurationVersion is not None
     assert ConfigurationLifecycleState is not None
+    assert ConfigurationVersion is not None
 
 
 def test_configuration_public_api_exports() -> None:
     from accore.platform import configuration
 
     assert configuration.__all__ == [
+        "ConfigurationCandidate",
         "ConfigurationIdentity",
         "ConfigurationLifecycleState",
         "ConfigurationVersion",
