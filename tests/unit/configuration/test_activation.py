@@ -25,83 +25,41 @@ def make_candidate(
     return candidate
 
 
-def test_initial_state_is_empty() -> None:
-    activator = ConfigurationActivator()
-
-    assert activator.current() is None
-
-
-def test_successful_first_activation() -> None:
-    activator = ConfigurationActivator()
-    candidate = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
-
-    active = activator.activate(candidate)
-
-    assert active is activator.current()
-
-
-def test_activation_preserves_identity() -> None:
+def test_activation_creates_active_configuration() -> None:
     activator = ConfigurationActivator()
     candidate = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
 
     active = activator.activate(candidate)
 
     assert active.identity == candidate.identity
-
-
-def test_activation_preserves_version() -> None:
-    activator = ConfigurationActivator()
-    candidate = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
-
-    active = activator.activate(candidate)
-
     assert active.version == candidate.version
-
-
-def test_activation_preserves_metadata_registry() -> None:
-    activator = ConfigurationActivator()
-    candidate = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
-
-    active = activator.activate(candidate)
-
     assert active.metadata_registry is candidate.metadata_registry
 
 
-def test_activation_replaces_previous_configuration() -> None:
+def test_activation_is_stateless() -> None:
     activator = ConfigurationActivator()
 
-    first = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
-    second = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
+    first_candidate = make_candidate(
+        state=ConfigurationLifecycleState.VALIDATED,
+    )
+    second_candidate = make_candidate(
+        state=ConfigurationLifecycleState.VALIDATED,
+    )
 
-    first_active = activator.activate(first)
-    second_active = activator.activate(second)
+    first = activator.activate(first_candidate)
+    second = activator.activate(second_candidate)
 
-    assert activator.current() is second_active
-    assert activator.current() is not first_active
+    assert first is not second
+    assert first.identity == first_candidate.identity
+    assert second.identity == second_candidate.identity
 
 
-def test_loaded_candidate_cannot_be_activated() -> None:
+def test_activation_rejects_non_validated_candidate() -> None:
     activator = ConfigurationActivator()
     candidate = make_candidate(state=ConfigurationLifecycleState.LOADED)
 
     with pytest.raises(ValueError, match="VALIDATED"):
         activator.activate(candidate)
-
-    assert activator.current() is None
-
-
-def test_failed_activation_preserves_previous_configuration() -> None:
-    activator = ConfigurationActivator()
-
-    valid = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
-    invalid = make_candidate(state=ConfigurationLifecycleState.LOADED)
-
-    active = activator.activate(valid)
-
-    with pytest.raises(ValueError):
-        activator.activate(invalid)
-
-    assert activator.current() is active
 
 
 def test_activation_does_not_mutate_candidate() -> None:
@@ -119,3 +77,9 @@ def test_activation_does_not_mutate_candidate() -> None:
     assert candidate.version is version
     assert candidate.metadata_registry is registry
     assert candidate.state is state
+
+
+def test_activator_does_not_retain_active_configuration() -> None:
+    activator = ConfigurationActivator()
+
+    assert not hasattr(activator, "_active_configuration")

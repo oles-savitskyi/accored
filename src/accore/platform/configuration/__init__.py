@@ -3,6 +3,7 @@ from accore.platform.configuration.activation import (
     ConfigurationActivator,
 )
 from accore.platform.configuration.candidate import ConfigurationCandidate
+from accore.platform.configuration.context import RuntimeConfigurationContext
 from accore.platform.configuration.identity import (
     ConfigurationIdentity,
     ConfigurationVersion,
@@ -37,5 +38,6 @@ __all__ = [
     "MetadataResolver",
     "RuntimeConfigurationBinding",
     "RuntimeConfigurationBindingError",
+    "RuntimeConfigurationContext",
     "RuntimeConfigurationError",
 ]

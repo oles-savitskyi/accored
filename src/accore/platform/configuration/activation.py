@@ -21,10 +21,7 @@ class ActiveConfiguration:
 
 
 class ConfigurationActivator:
-    """Publish validated configuration candidates as the active configuration."""
-
-    def __init__(self) -> None:
-        self._current: ActiveConfiguration | None = None
+    """Create active configurations from validated configuration candidates."""
 
     def activate(self, candidate: ConfigurationCandidate) -> ActiveConfiguration:
         """Activate a validated configuration candidate.
@@ -35,15 +32,8 @@ class ConfigurationActivator:
         if candidate.state is not ConfigurationLifecycleState.VALIDATED:
             raise ValueError("Only VALIDATED configuration candidates can be activated.")
 
-        active = ActiveConfiguration(
+        return ActiveConfiguration(
             identity=candidate.identity,
             version=candidate.version,
             metadata_registry=candidate.metadata_registry,
         )
-
-        self._current = active
-        return active
-
-    def current(self) -> ActiveConfiguration | None:
-        """Return the currently active configuration, if any."""
-        return self._current

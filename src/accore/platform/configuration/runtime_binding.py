@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from accore.platform.configuration.activation import ActiveConfiguration
+from accore.platform.configuration.context import RuntimeConfigurationContext
 
 
 class RuntimeConfigurationBindingError(RuntimeError):
@@ -28,3 +29,12 @@ class RuntimeConfigurationBinding:
             raise RuntimeConfigurationBindingError("Runtime configuration is not bound.")
 
         return self._active_configuration
+
+    def acquire(self) -> RuntimeConfigurationContext:
+        """Capture the currently bound configuration as a runtime context.
+
+        Raises:
+            RuntimeConfigurationBindingError:
+                If no configuration is currently bound.
+        """
+        return RuntimeConfigurationContext(configuration=self.get())

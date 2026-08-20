@@ -12,6 +12,7 @@ from accore.platform.configuration import (
     MetadataResolver,
     RuntimeConfigurationBinding,
     RuntimeConfigurationBindingError,
+    RuntimeConfigurationContext,
     RuntimeConfigurationError,
 )
 
@@ -30,6 +31,7 @@ def test_configuration_public_api() -> None:
     assert MetadataResolver is not None
     assert RuntimeConfigurationBinding is not None
     assert RuntimeConfigurationBindingError is not None
+    assert RuntimeConfigurationContext is not None
     assert RuntimeConfigurationError is not None
 
 
@@ -50,5 +52,6 @@ def test_configuration_public_api_exports() -> None:
         "MetadataResolver",
         "RuntimeConfigurationBinding",
         "RuntimeConfigurationBindingError",
+        "RuntimeConfigurationContext",
         "RuntimeConfigurationError",
     ]
