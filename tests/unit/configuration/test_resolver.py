@@ -9,8 +9,8 @@ from accore.platform.configuration import (
     MetadataResolutionError,
     MetadataResolver,
     RuntimeConfigurationBinding,
+    RuntimeConfigurationContext,
 )
-from accore.platform.configuration.resolver import RuntimeConfigurationError
 from accore.platform.definitions import CatalogDefinition
 from accore.platform.foundation import Identifier
 from accore.platform.metadata import MetadataCompiler, MetadataRegistry
@@ -44,63 +44,51 @@ def make_active_configuration(
     return configuration, metadata_identifier
 
 
+def make_context(
+    configuration: ActiveConfiguration,
+) -> RuntimeConfigurationContext:
+    return RuntimeConfigurationContext(configuration=configuration)
+
+
 def test_resolve_returns_metadata() -> None:
-    binding = RuntimeConfigurationBinding()
     configuration, identifier = make_active_configuration()
+    context = make_context(configuration)
 
-    binding.bind(configuration)
+    resolver = MetadataResolver()
 
-    resolver = MetadataResolver(binding)
-
-    metadata = resolver.resolve(identifier)
+    metadata = resolver.resolve(context, identifier)
 
     assert metadata.name == "Products"
 
 
 def test_resolve_uses_identifier() -> None:
-    binding = RuntimeConfigurationBinding()
-
     first, first_identifier = make_active_configuration(name="Products")
     second, second_identifier = make_active_configuration(name="Customers")
 
-    binding.bind(first)
-    resolver = MetadataResolver(binding)
+    resolver = MetadataResolver()
 
-    assert resolver.resolve(first_identifier).name == "Products"
+    first_context = make_context(first)
+    second_context = make_context(second)
 
-    binding.bind(second)
-
-    assert resolver.resolve(second_identifier).name == "Customers"
+    assert resolver.resolve(first_context, first_identifier).name == "Products"
+    assert resolver.resolve(second_context, second_identifier).name == "Customers"
 
 
 def test_resolve_raises_when_metadata_missing() -> None:
-    binding = RuntimeConfigurationBinding()
     configuration, _ = make_active_configuration()
+    context = make_context(configuration)
 
-    binding.bind(configuration)
-    resolver = MetadataResolver(binding)
-
+    resolver = MetadataResolver()
     missing_identifier = Identifier.new()
 
     with pytest.raises(MetadataResolutionError) as exc_info:
-        resolver.resolve(missing_identifier)
+        resolver.resolve(context, missing_identifier)
 
     assert exc_info.value.identifier == missing_identifier
 
 
-def test_resolve_raises_when_configuration_not_bound() -> None:
+def test_resolve_uses_context_snapshot() -> None:
     binding = RuntimeConfigurationBinding()
-    resolver = MetadataResolver(binding)
-
-    identifier = Identifier.new()
-
-    with pytest.raises(RuntimeConfigurationError):
-        resolver.resolve(identifier)
-
-
-def test_resolve_uses_current_configuration() -> None:
-    binding = RuntimeConfigurationBinding()
-
     identifier = Identifier.new()
 
     first, _ = make_active_configuration(
@@ -114,68 +102,45 @@ def test_resolve_uses_current_configuration() -> None:
         identifier=identifier,
     )
 
-    resolver = MetadataResolver(binding)
-
     binding.bind(first)
-    assert resolver.resolve(identifier).name == "Products v1"
+    first_context = binding.acquire()
 
     binding.bind(second)
-    assert resolver.resolve(identifier).name == "Products v2"
+    second_context = binding.acquire()
+
+    resolver = MetadataResolver()
+
+    assert resolver.resolve(first_context, identifier).name == "Products v1"
+    assert resolver.resolve(second_context, identifier).name == "Products v2"
 
 
-def test_resolver_does_not_keep_stale_configuration() -> None:
-    binding = RuntimeConfigurationBinding()
+def test_resolver_does_not_retain_configuration() -> None:
+    resolver = MetadataResolver()
 
-    identifier = Identifier.new()
-
-    first, _ = make_active_configuration(
-        version=1,
-        name="Products v1",
-        identifier=identifier,
-    )
-    second, _ = make_active_configuration(
-        version=2,
-        name="Products v2",
-        identifier=identifier,
-    )
-
-    resolver = MetadataResolver(binding)
-
-    binding.bind(first)
-    first_metadata = resolver.resolve(identifier)
-
-    binding.bind(second)
-    second_metadata = resolver.resolve(identifier)
-
-    assert first_metadata.name == "Products v1"
-    assert second_metadata.name == "Products v2"
-    assert second_metadata is not first_metadata
+    assert not hasattr(resolver, "_binding")
+    assert not hasattr(resolver, "_configuration")
 
 
 def test_resolve_does_not_mutate_configuration() -> None:
-    binding = RuntimeConfigurationBinding()
     configuration, identifier = make_active_configuration()
-
     registry_contents_before = configuration.metadata_registry.all()
 
-    binding.bind(configuration)
+    context = make_context(configuration)
 
-    resolver = MetadataResolver(binding)
-    resolver.resolve(identifier)
+    resolver = MetadataResolver()
+    resolver.resolve(context, identifier)
 
     assert configuration.metadata_registry.all() == registry_contents_before
 
 
 def test_resolved_metadata_identity_is_preserved() -> None:
-    binding = RuntimeConfigurationBinding()
     configuration, identifier = make_active_configuration()
-
     expected_metadata = configuration.metadata_registry.get(identifier)
 
-    binding.bind(configuration)
+    context = make_context(configuration)
 
-    resolver = MetadataResolver(binding)
+    resolver = MetadataResolver()
 
-    resolved_metadata = resolver.resolve(identifier)
+    resolved_metadata = resolver.resolve(context, identifier)
 
     assert resolved_metadata is expected_metadata

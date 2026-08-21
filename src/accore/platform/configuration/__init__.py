@@ -13,7 +13,6 @@ from accore.platform.configuration.loader import ConfigurationLoader
 from accore.platform.configuration.resolver import (
     MetadataResolutionError,
     MetadataResolver,
-    RuntimeConfigurationError,
 )
 from accore.platform.configuration.runtime_binding import (
     RuntimeConfigurationBinding,
@@ -39,5 +38,4 @@ __all__ = [
     "RuntimeConfigurationBinding",
     "RuntimeConfigurationBindingError",
     "RuntimeConfigurationContext",
-    "RuntimeConfigurationError",
 ]

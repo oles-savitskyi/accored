@@ -52,16 +52,14 @@ Quality gates closed:
 
 * P3-QG1 — Context Contract: **CLOSED**;
 * P3-QG2 — Ownership: **CLOSED**.
+* P3-QG3 — Metadata Resolver Context Boundary: **CLOSED**.
 
 Validation at the Step 2 checkpoint:
 
-* `pytest`: **178 passed**;
+* `pytest`: **177 passed**;
 * `ruff check .`: **PASS**;
 * `black --check .`: **PASS**;
 * `mypy src`: **PASS**.
-
-The next implementation step is Step 3 — MetadataResolver. Step 3 has not
-yet been implemented.
 
 ## 2. Implementation Objectives
 
@@ -252,9 +250,9 @@ binding owns publication;
 activator has no competing runtime current state.
 ## 7. Step 3 — MetadataResolver
 
-**Status:** Next
+**Status:** Implemented
 
-**Quality Gate:** P3-QG3 — OPEN
+**Quality Gate:** P3-QG3 — CLOSED
 
 Objective
 
@@ -292,6 +290,11 @@ resolution uses the context's configuration version;
 missing metadata produces an explicit error;
 changing the binding does not affect resolution through an existing context.
 ## 8. Step 4 — RuntimeResolver Integration
+
+**Status:** Next
+
+**Quality Gate:** P3-QG4 — OPEN
+
 Objective
 
 Remove direct runtime dependency on MetadataRegistry.

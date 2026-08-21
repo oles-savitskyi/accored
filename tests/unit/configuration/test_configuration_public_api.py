@@ -13,7 +13,6 @@ from accore.platform.configuration import (
     RuntimeConfigurationBinding,
     RuntimeConfigurationBindingError,
     RuntimeConfigurationContext,
-    RuntimeConfigurationError,
 )
 
 
@@ -32,7 +31,6 @@ def test_configuration_public_api() -> None:
     assert RuntimeConfigurationBinding is not None
     assert RuntimeConfigurationBindingError is not None
     assert RuntimeConfigurationContext is not None
-    assert RuntimeConfigurationError is not None
 
 
 def test_configuration_public_api_exports() -> None:
@@ -53,5 +51,4 @@ def test_configuration_public_api_exports() -> None:
         "RuntimeConfigurationBinding",
         "RuntimeConfigurationBindingError",
         "RuntimeConfigurationContext",
-        "RuntimeConfigurationError",
     ]
