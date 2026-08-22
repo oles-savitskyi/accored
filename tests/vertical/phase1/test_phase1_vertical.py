@@ -1,3 +1,10 @@
+from accore.platform.configuration import (
+    ActiveConfiguration,
+    ConfigurationIdentity,
+    ConfigurationVersion,
+    MetadataResolver,
+    RuntimeConfigurationContext,
+)
 from accore.platform.metadata import MetadataCompiler, MetadataRegistry
 from accore.platform.runtime.catalog import CatalogRuntime
 from accore.platform.runtime.resolution import RuntimeResolver
@@ -26,9 +33,15 @@ def test_phase1_vertical_slice() -> None:
     del definition
 
     # 6. Runtime resolution
-    resolver = RuntimeResolver(registry)
-    runtime = resolver.resolve(ASSORTMENT_ID)
+    configuration = ActiveConfiguration(
+        identity=ConfigurationIdentity("standard"),
+        version=ConfigurationVersion(1),
+        metadata_registry=registry,
+    )
+    context = RuntimeConfigurationContext(configuration)
+    resolver = RuntimeResolver(MetadataResolver())
 
+    runtime = resolver.resolve(context, ASSORTMENT_ID)
     # 7. Runtime contract
     assert isinstance(runtime, CatalogRuntime)
 

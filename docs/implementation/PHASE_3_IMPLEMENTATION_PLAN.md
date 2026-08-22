@@ -291,39 +291,445 @@ missing metadata produces an explicit error;
 changing the binding does not affect resolution through an existing context.
 ## 8. Step 4 — RuntimeResolver Integration
 
-**Status:** Next
+**Status:** Completed
 
-**Quality Gate:** P3-QG4 — OPEN
+**Quality Gate:** P3-QG4 — Closed
 
-Objective
+Step 4 integrates RuntimeResolver with the Phase 3 runtime configuration
+consumption model.
 
-Remove direct runtime dependency on MetadataRegistry.
+The legacy RuntimeResolver depended directly on MetadataRegistry:
 
-Current conceptual path
-RuntimeResolver
-    ↓
-MetadataRegistry
-Target path
-RuntimeResolver
-    ↓
-MetadataResolver
-    ↓
-RuntimeConfigurationContext
-Responsibilities
+    RuntimeResolver
+        ↓
+    MetadataRegistry
 
-RuntimeResolver remains responsible for runtime object materialization.
+This bypassed RuntimeConfigurationContext and the MetadataResolver boundary
+established by Step 3.
 
-It does not become responsible for configuration lifecycle or metadata storage.
+Step 4 migrates RuntimeResolver to the Phase 3 configuration consumption
+model:
 
-Tests
+    RuntimeResolver
+        ↓
+    MetadataResolver
+        ↓
+    RuntimeConfigurationContext
+        ↓
+    ActiveConfiguration
+        ↓
+    MetadataRegistry
 
-Verify:
+The migration is divided into implementation substeps so that the runtime
+resolution boundary can be introduced without weakening the existing runtime
+contracts.
 
-runtime object resolution uses metadata from the supplied configuration
-context;
-runtime resolver does not bypass metadata resolution;
-configuration replacement does not alter an existing resolution context;
-resolution failures remain explicit.
+### 8.1 Step 4A — RuntimeResolver Contract Migration
+
+**Status:** Implemented
+
+**Quality Gate:** P3-QG4A — CLOSED
+
+#### Objective
+
+Replace the legacy MetadataRegistry-oriented RuntimeResolver contract with an
+explicit MetadataResolver and RuntimeConfigurationContext based contract.
+
+The RuntimeResolver constructor is now:
+
+    resolver = RuntimeResolver(metadata_resolver)
+
+Runtime resolution is now performed as:
+
+    runtime_object = resolver.resolve(
+        context,
+        identifier,
+    )
+
+RuntimeConfigurationContext is supplied explicitly for every resolution
+operation.
+
+#### Established Contract
+
+RuntimeResolver:
+
+- depends on MetadataResolver;
+- receives RuntimeConfigurationContext explicitly through `resolve()`;
+- does not acquire configuration from RuntimeConfigurationBinding;
+- does not retain RuntimeConfigurationContext as runtime state;
+- does not retain ActiveConfiguration;
+- does not retain MetadataRegistry;
+- delegates metadata lookup exclusively to MetadataResolver;
+- remains responsible for converting supported metadata types into runtime
+  objects.
+
+The resolver is therefore reusable across multiple runtime configuration
+contexts:
+
+    resolver.resolve(context_v1, identifier)
+    resolver.resolve(context_v2, identifier)
+
+The selected context determines the metadata used for the current resolution
+operation.
+
+#### Implementation
+
+RuntimeResolver now follows:
+
+    def __init__(self, metadata_resolver: MetadataResolver) -> None:
+        ...
+
+    def resolve(
+        self,
+        context: RuntimeConfigurationContext,
+        identifier: Identifier,
+    ) -> CatalogRuntime:
+        ...
+
+Metadata lookup is performed through:
+
+    metadata = self._metadata_resolver.resolve(
+        context,
+        identifier,
+    )
+
+RuntimeResolver does not access MetadataRegistry directly.
+
+#### Error Contract
+
+Metadata lookup failures remain owned by MetadataResolver.
+
+`MetadataResolutionError` is therefore propagated without introducing a
+RuntimeResolver-specific metadata lookup exception.
+
+Unsupported metadata types continue to produce the existing `TypeError`
+behavior.
+
+#### Tests
+
+RuntimeResolver tests were migrated to the explicit context contract.
+
+The test suite covers:
+
+- resolution of registered catalog metadata;
+- resolution through an explicitly supplied runtime context;
+- resolution of multiple metadata objects;
+- resolution using different configuration contexts;
+- absence of stale configuration state;
+- propagation of MetadataResolutionError;
+- rejection of unsupported metadata types;
+- non-mutation of metadata/configuration state.
+
+### 8.2 Step 4B — Standard Configuration Bootstrap Migration
+
+**Status:** Implemented
+
+**Quality Gate:** P3-QG4B — CLOSED
+
+#### Objective
+
+Migrate StandardConfigurationBootstrap from the legacy MetadataRegistry-oriented
+composition model to the Phase 3 runtime configuration model.
+
+The bootstrap is a composition root and must construct the runtime dependency
+graph without transferring configuration ownership to RuntimeResolver.
+
+The resulting composition is:
+
+    ActiveConfiguration
+        ↓
+    RuntimeConfigurationContext
+        ↓
+    MetadataResolver
+        ↓
+    RuntimeResolver
+
+The bootstrap returns the runtime configuration context together with the
+RuntimeResolver:
+
+    context, resolver = StandardConfigurationBootstrap().initialize()
+
+The returned RuntimeConfigurationContext contains the ActiveConfiguration
+whose MetadataRegistry contains the compiled Standard Configuration metadata.
+
+RuntimeResolver remains unaware of how the context was created.
+
+#### Bootstrap Responsibilities
+
+StandardConfigurationBootstrap is responsible for:
+
+1. compiling Standard Configuration definitions;
+2. registering the resulting metadata;
+3. constructing the ActiveConfiguration;
+4. constructing the RuntimeConfigurationContext;
+5. constructing MetadataResolver;
+6. constructing RuntimeResolver;
+7. returning the runtime consumption components required by callers.
+
+The bootstrap must not:
+
+- make RuntimeResolver responsible for configuration acquisition;
+- introduce a second active-configuration state;
+- make RuntimeResolver depend on MetadataRegistry;
+- make RuntimeResolver depend on RuntimeConfigurationBinding.
+
+#### Public Contract
+
+The Standard Configuration bootstrap contract is:
+
+    context, resolver = StandardConfigurationBootstrap().initialize()
+
+where:
+
+- `context` is a `RuntimeConfigurationContext`;
+- `resolver` is a `RuntimeResolver`.
+
+Standard Configuration callers resolve runtime objects explicitly through the
+returned context:
+
+    runtime = resolver.resolve(context, identifier)
+
+#### Tests
+
+Standard Configuration tests verify:
+
+- bootstrap initialization contract;
+- creation of RuntimeConfigurationContext;
+- creation of RuntimeResolver;
+- registration of all Standard Configuration catalogs;
+- metadata correspondence with Standard Configuration definitions;
+- deterministic bootstrap behavior;
+- successful runtime resolution through the explicit context.
+
+### 8.3 Step 4C — Vertical Slice Migration
+
+**Status:** Implemented
+
+**Quality Gate:** P3-QG4C — CLOSED
+
+#### Objective
+
+Migrate existing Phase 1 and Phase 2 vertical slices from the legacy:
+
+    RuntimeResolver(registry)
+
+contract to the explicit Phase 3 context-based contract.
+
+The vertical slices now construct:
+
+    ActiveConfiguration
+        ↓
+    RuntimeConfigurationContext
+        ↓
+    MetadataResolver
+        ↓
+    RuntimeResolver
+
+and perform runtime resolution through:
+
+    resolver.resolve(context, identifier)
+
+#### Requirements
+
+The vertical slices must continue to verify the existing runtime behavior while
+also exercising the Phase 3 configuration consumption boundary.
+
+Phase 1 verifies:
+
+    Definition
+        ↓
+    Validation
+        ↓
+    Compilation
+        ↓
+    Registration
+        ↓
+    ActiveConfiguration
+        ↓
+    RuntimeConfigurationContext
+        ↓
+    MetadataResolver
+        ↓
+    RuntimeResolver
+        ↓
+    CatalogRuntime
+
+Phase 2 verifies the same runtime resolution boundary using the metadata model
+introduced by Phase 2.
+
+No legacy direct Registry → RuntimeResolver path remains in the vertical
+slices.
+
+### 8.4 Public API Alignment
+
+**Status:** Implemented
+
+**Quality Gate:** P3-QG4D — CLOSED
+
+RuntimeResolver public usage has been aligned with the Phase 3 contract.
+
+The public API exposes the resolver without exposing or requiring a
+MetadataRegistry dependency.
+
+No unrelated public API changes are introduced by Step 4.
+
+### 8.5 Step 4 Validation
+
+The completed Step 4A–4C implementation has been validated with:
+
+    pytest
+    ruff check .
+    black --check .
+    mypy src
+
+Current validation result:
+
+- `pytest`: **177 passed**
+- `ruff check .`: **PASS**
+- `black --check .`: **PASS**
+- `mypy src`: **PASS**
+
+The complete test suite remains green.
+
+### P3-QG4 — Runtime Resolver Boundary
+
+**Status:** Closed
+
+P3-QG4 closes only when all Step 4 architectural requirements are satisfied
+and the complete validation suite remains green.
+
+The following invariants must hold:
+
+- RuntimeResolver has no direct MetadataRegistry dependency;
+- RuntimeResolver depends on MetadataResolver;
+- RuntimeResolver receives RuntimeConfigurationContext explicitly;
+- RuntimeResolver has no RuntimeConfigurationBinding dependency;
+- RuntimeResolver has no ConfigurationActivator dependency;
+- RuntimeResolver has no ConfigurationLoader dependency;
+- RuntimeResolver does not retain ActiveConfiguration as state;
+- RuntimeResolver does not retain RuntimeConfigurationContext as state;
+- RuntimeResolver does not retain MetadataRegistry as state;
+- metadata lookup goes exclusively through MetadataResolver;
+- MetadataResolutionError remains owned by MetadataResolver;
+- unsupported metadata behavior remains unchanged;
+- runtime object construction behavior remains unchanged;
+- Standard Configuration bootstrap uses the Phase 3 runtime configuration
+  model;
+- Phase 1 and Phase 2 vertical slices use the explicit context contract;
+- public API tests are aligned;
+- `pytest` passes;
+- `ruff check .` passes;
+- `black --check .` passes;
+- `mypy src` passes.
+
+P3-QG4 is closed. All RuntimeResolver boundary requirements are satisfied,
+the legacy MetadataRegistry-oriented resolution contract has been removed,
+and the complete validation suite passes.
+
+### 8.6 Expected Dependency Graph
+
+After the completed Step 4A–4C migration:
+
+    ActiveConfiguration
+            │
+            ▼
+    RuntimeConfigurationContext
+            │
+            ├──────────────────────┐
+            ▼                      │
+    MetadataResolver               │
+            │                      │
+            │ metadata             │
+            ▼                      │
+    RuntimeResolver ◄──────────────┘
+            │
+            ▼
+      CatalogRuntime
+
+Configuration publication remains outside RuntimeResolver.
+
+Where a runtime component obtains its context through the configuration
+lifecycle, the lifecycle remains responsible for publication and ownership:
+
+    ConfigurationLoader
+            ↓
+    ConfigurationActivator
+            ↓
+    RuntimeConfigurationBinding
+            ↓
+    RuntimeConfigurationContext
+            ↓
+    MetadataResolver
+            ↓
+    RuntimeResolver
+            ↓
+    Runtime Object
+
+RuntimeResolver itself does not depend on the binding and does not discover
+the current configuration.
+
+### 8.7 Architectural Boundary Established by Step 4
+
+Step 4 establishes a strict separation between configuration consumption and
+runtime object construction.
+
+MetadataResolver owns:
+
+- metadata lookup;
+- metadata resolution errors;
+- access to metadata within the supplied runtime context.
+
+RuntimeResolver owns:
+
+- runtime object resolution;
+- supported metadata type checks;
+- construction of executable runtime objects.
+
+RuntimeConfigurationContext owns:
+
+- the immutable runtime configuration snapshot supplied to a resolution
+  operation.
+
+RuntimeConfigurationBinding owns:
+
+- publication and replacement of the current runtime configuration for
+  lifecycle-aware consumers.
+
+No runtime resolution component bypasses these boundaries to access the
+MetadataRegistry directly.
+
+### Exit State
+
+When P3-QG4 closes, the runtime resolution path shall be:
+
+    Configuration Definition
+        ↓
+    Metadata
+        ↓
+    ActiveConfiguration
+        ↓
+    RuntimeConfigurationContext
+        ↓
+    MetadataResolver
+        ↓
+    RuntimeResolver
+        ↓
+    Runtime Object
+
+The runtime layer therefore consumes configuration explicitly and does not
+discover configuration through storage, registry ownership, or binding
+dependencies.
+
+The legacy:
+
+    RuntimeResolver(MetadataRegistry)
+    RuntimeResolver.resolve(identifier)
+
+contract is removed from the architecture.
+
+The Phase 3 runtime consumption model becomes the only supported runtime
+resolution path.
+
 ## 9. Step 5 — Standard Configuration Vertical Slice
 Objective
 

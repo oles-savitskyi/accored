@@ -251,3 +251,289 @@ Negative:
 | ADR-CONF-004 | Metadata and runtime-object resolution remain layered             |
 | ADR-CONF-005 | Published configuration is immutable from the runtime perspective |
 | ADR-CONF-006 | Runtime consumers must not bypass configuration resolution        |
+
+## ADR-004 — RuntimeResolver Uses Explicit Runtime Configuration Context
+
+**Status:** Accepted
+
+**Phase:** Phase 3 — Runtime Configuration Consumption & Resolution
+
+**Decision:** RuntimeResolver shall resolve runtime objects using an explicit RuntimeConfigurationContext supplied for each resolution operation and shall obtain metadata exclusively through MetadataResolver.
+
+### Context
+
+The initial runtime implementation introduced RuntimeResolver as a component
+directly dependent on MetadataRegistry:
+
+    RuntimeResolver
+        ↓
+    MetadataRegistry
+        ↓
+    Metadata
+
+This model was sufficient for the early vertical slice, but it bypasses the
+runtime configuration architecture established by Phase 2 and Phase 3.
+
+In particular, direct MetadataRegistry dependency causes RuntimeResolver to
+implicitly assume that the registry supplied to it represents the runtime
+configuration against which an operation is executed.
+
+Phase 3 established a different configuration consumption model:
+
+    ActiveConfiguration
+        ↓
+    RuntimeConfigurationBinding
+        ↓
+    RuntimeConfigurationContext
+        ↓
+    Runtime Consumers
+
+RuntimeConfigurationBinding participates in configuration publication and
+lifecycle management. RuntimeResolver does not depend on the binding and
+receives RuntimeConfigurationContext explicitly.
+
+Phase 3 Step 3 further established MetadataResolver as the metadata resolution
+boundary. MetadataResolver resolves metadata from an explicitly supplied
+RuntimeConfigurationContext and does not retain or discover the current
+configuration itself.
+
+RuntimeResolver must therefore integrate with these boundaries without
+reintroducing direct ownership or discovery of runtime configuration.
+
+### Decision
+
+RuntimeResolver shall:
+
+1. depend on MetadataResolver rather than MetadataRegistry;
+2. receive RuntimeConfigurationContext explicitly for each resolve operation;
+3. remain stateless with respect to runtime configuration and retain only its
+   MetadataResolver dependency;
+4. never acquire configuration from RuntimeConfigurationBinding;
+5. never retain ActiveConfiguration or RuntimeConfigurationContext as mutable
+   current state;
+6. obtain metadata exclusively through MetadataResolver;
+7. remain responsible for converting supported metadata into executable runtime
+   objects;
+8. preserve existing runtime-object construction semantics.
+
+The target contract is:
+
+    RuntimeResolver
+        │
+        ├── MetadataResolver
+        │
+        └── RuntimeConfigurationContext
+                    │
+                    ↓
+             ActiveConfiguration
+                    │
+                    ↓
+             MetadataRegistry
+
+Conceptually:
+
+    resolver = RuntimeResolver(metadata_resolver)
+
+    runtime_object = resolver.resolve(
+        context,
+        identifier,
+    )
+
+The RuntimeConfigurationContext is an operation-level input, not resolver
+state.
+
+### Responsibilities
+
+RuntimeConfigurationBinding is responsible for determining which active
+configuration is available to new runtime operations.
+
+RuntimeConfigurationContext is responsible for representing the immutable
+configuration snapshot against which a runtime operation executes.
+
+MetadataResolver is responsible for resolving metadata from that snapshot.
+
+RuntimeResolver is responsible for converting resolved metadata into the
+appropriate executable runtime object.
+
+Therefore:
+
+    configuration selection
+        ≠
+    metadata resolution
+        ≠
+    runtime object resolution
+
+### Dependency Boundary
+
+The following dependency is explicitly allowed:
+
+    RuntimeResolver
+        → MetadataResolver
+
+RuntimeConfigurationContext is an explicit operation-level input:
+
+    RuntimeResolver.resolve(...)
+        → RuntimeConfigurationContext
+
+RuntimeConfigurationContext is not retained as resolver state.
+
+RuntimeConfigurationContext is an explicit operation-level input to
+RuntimeResolver.resolve(), not retained resolver state.
+
+The following dependencies are explicitly prohibited:
+
+    RuntimeResolver
+        ✕→ MetadataRegistry
+        ✕→ RuntimeConfigurationBinding
+        ✕→ ConfigurationActivator
+        ✕→ ConfigurationLoader
+
+RuntimeResolver must not bypass MetadataResolver in order to access the
+metadata registry directly.
+
+### Context Semantics
+
+Runtime resolution shall use the configuration represented by the explicitly
+supplied RuntimeConfigurationContext.
+
+For example:
+
+    context_v1
+        ↓
+    resolve(context_v1, identifier)
+        ↓
+    runtime object based on configuration v1
+
+A subsequent binding change:
+
+    RuntimeConfigurationBinding
+        ↓
+    configuration v2
+
+must not change the configuration represented by an already-created RuntimeConfigurationContext.
+
+Likewise:
+
+    resolve(context_v2, identifier)
+        ↓
+    runtime object based on configuration v2
+
+The resolver therefore follows snapshot semantics rather than current-binding
+semantics.
+
+### Error Ownership
+
+Metadata lookup errors remain owned by MetadataResolver.
+
+If metadata is absent from the supplied configuration:
+
+    MetadataRegistry
+        ↓ KeyError
+    MetadataResolver
+        ↓
+    MetadataResolutionError
+        ↓
+    RuntimeResolver
+
+RuntimeResolver shall not replace or reinterpret MetadataResolutionError.
+
+RuntimeResolver remains responsible for errors caused by unsupported metadata
+types or unsupported runtime object mappings.
+
+The existing unsupported-metadata behavior is therefore preserved:
+
+    unsupported metadata type
+        ↓
+    TypeError
+
+A future dedicated RuntimeResolutionError may be introduced if runtime
+resolution grows beyond simple metadata-type dispatch, but such an error is
+outside the scope of this step.
+
+### Statelessness
+
+RuntimeResolver shall not retain:
+
+    _registry
+    _binding
+    _context
+    _active_configuration
+
+as runtime configuration state.
+
+A RuntimeResolver instance may be reused for multiple contexts:
+
+    resolver.resolve(context_v1, identifier)
+    resolver.resolve(context_v2, identifier)
+
+Each operation must use exactly the context supplied to that operation.
+
+### Compatibility
+
+This decision changes the RuntimeResolver constructor and resolve method
+contract from:
+
+    RuntimeResolver(registry)
+    resolver.resolve(identifier)
+
+to:
+
+    RuntimeResolver(metadata_resolver)
+    resolver.resolve(context, identifier)
+
+Existing tests, vertical slices, and composition roots such as
+StandardConfigurationBootstrap that construct RuntimeResolver directly must
+therefore be migrated.
+
+This migration is an intentional architectural change and is not considered
+a compatibility-preserving refactoring.
+
+### Consequences
+
+#### Positive
+
+- RuntimeResolver becomes independent from storage details.
+- Runtime configuration selection is separated from runtime object resolution.
+- MetadataResolver becomes the single metadata resolution boundary.
+- Runtime operations obtain explicit configuration snapshots.
+- Binding changes cannot silently alter an already-created context.
+- RuntimeResolver becomes stateless and reusable.
+- Future runtime consumers can follow the same context-based contract.
+
+#### Negative
+
+- Existing RuntimeResolver callers must be migrated.
+- Standard bootstrap must be adapted to construct the new dependency graph.
+- Existing vertical tests must explicitly create or obtain a runtime context.
+- RuntimeResolver tests become slightly more elaborate because configuration
+  context is now part of the operation contract.
+
+### Scope
+
+This ADR covers only the integration of RuntimeResolver with the Phase 3
+configuration consumption model.
+
+It does not introduce:
+
+- new runtime object types;
+- new metadata types;
+- runtime caching;
+- configuration lifecycle changes;
+- concurrent configuration management;
+- persistence changes;
+- a generalized runtime factory framework.
+
+### Quality Gate
+
+Step 4 is complete only when P3-QG4 confirms:
+
+- RuntimeResolver has no direct MetadataRegistry dependency;
+- RuntimeResolver has no RuntimeConfigurationBinding dependency;
+- RuntimeResolver receives RuntimeConfigurationContext explicitly;
+- metadata resolution goes through MetadataResolver;
+- snapshot semantics are preserved;
+- unsupported metadata behavior remains correct;
+- existing runtime object semantics remain correct;
+- standard bootstrap and vertical consumers are migrated;
+- public APIs are aligned;
+- pytest, ruff, black and mypy pass.

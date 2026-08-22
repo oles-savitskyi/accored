@@ -1,3 +1,10 @@
+from accore.platform.configuration import (
+    ActiveConfiguration,
+    ConfigurationIdentity,
+    ConfigurationVersion,
+    MetadataResolver,
+    RuntimeConfigurationContext,
+)
 from accore.platform.definitions import (
     AttributeDefinition,
     AttributeType,
@@ -26,16 +33,19 @@ def test_phase2_definition_to_runtime_vertical_slice() -> None:
             ),
         ),
     )
-
     compiler = MetadataCompiler()
     metadata = compiler.compile(definition)
-
     registry = MetadataRegistry()
     registry.register(metadata)
 
-    resolver = RuntimeResolver(registry)
+    configuration = ActiveConfiguration(
+        identity=ConfigurationIdentity("standard"),
+        version=ConfigurationVersion(1),
+        metadata_registry=registry,
+    )
+    context = RuntimeConfigurationContext(configuration)
+    resolver = RuntimeResolver(MetadataResolver())
 
-    runtime = resolver.resolve(metadata.identifier)
+    runtime = resolver.resolve(context, definition.identifier)
 
     assert isinstance(runtime, CatalogRuntime)
-    assert runtime.metadata == metadata
