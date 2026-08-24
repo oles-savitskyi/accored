@@ -591,7 +591,7 @@ Current validation result:
 
 The complete test suite remains green.
 
-### P3-QG4 — Runtime Resolver Boundary
+#### P3-QG4 — Runtime Resolver Boundary
 
 **Status:** Closed
 
@@ -698,7 +698,7 @@ RuntimeConfigurationBinding owns:
 No runtime resolution component bypasses these boundaries to access the
 MetadataRegistry directly.
 
-### Exit State
+#### Exit State
 
 When P3-QG4 closes, the runtime resolution path shall be:
 
@@ -733,41 +733,425 @@ resolution path.
 ## 9. Step 5 — Standard Configuration Vertical Slice
 Objective
 
-Demonstrate the complete Phase 3 architecture through an existing Standard
-Configuration runtime object.
+Step 5 establishes the first complete end-to-end runtime path through the
+Phase 3 configuration architecture using the existing Standard Configuration.
 
-Required flow
-Standard Definition
-        ↓
-Compiler
-        ↓
-Candidate
-        ↓
+The purpose of this step is not to introduce new runtime infrastructure, but
+to demonstrate that the configuration lifecycle established in Phase 2 and
+the runtime resolution boundaries established in Steps 3 and 4 operate
+together as one coherent architecture.
+
+The vertical slice shall demonstrate that a Standard Configuration definition
+can be transformed into an active runtime configuration and subsequently
+consumed by runtime resolution through an explicit
+RuntimeConfigurationContext.
+
+The slice shall therefore connect:
+
+Standard Configuration Definition
+    ↓
+MetadataCompiler
+    ↓
+ConfigurationCandidate
+    ↓
 Validation
-        ↓
-Activation
-        ↓
+    ↓
+ConfigurationActivator
+    ↓
 ActiveConfiguration
-        ↓
+    ↓
 RuntimeConfigurationBinding
-        ↓
+    ↓
 RuntimeConfigurationContext
-        ↓
+    ↓
 MetadataResolver
-        ↓
+    ↓
 RuntimeResolver
-        ↓
+    ↓
 CatalogRuntime
-Acceptance criteria
 
-The vertical slice demonstrates that:
+### 9.1 Architectural Objective
 
-Standard Configuration can become active;
-runtime acquires a configuration context;
-metadata is resolved through that context;
-runtime object resolution uses the resolved metadata;
-no runtime consumer directly accesses MetadataRegistry;
-configuration replacement preserves existing context consistency.
+Step 5 shall establish the Standard Configuration vertical slice as the first
+consumer of the complete Phase 3 configuration lifecycle.
+
+The slice must demonstrate a strict separation between:
+
+configuration definition;
+metadata compilation;
+candidate validation;
+configuration activation;
+configuration publication;
+runtime configuration context creation;
+metadata resolution;
+runtime object resolution.
+
+No individual layer may bypass the preceding architectural boundary in order
+to obtain the data required by the next layer.
+
+In particular:
+
+runtime consumers must not access MetadataRegistry directly;
+RuntimeResolver must not acquire configuration from
+RuntimeConfigurationBinding;
+MetadataResolver remains the only metadata resolution boundary;
+configuration activation remains separate from runtime consumption;
+runtime resolution must use the explicitly supplied
+RuntimeConfigurationContext.
+
+### 9.2 Standard Configuration Input
+
+The vertical slice shall use an existing Standard Configuration definition,
+preferably the Assortment catalog, as its representative runtime object.
+
+The definition is the source-level representation of Standard Configuration and
+must remain independent of runtime object construction.
+
+The initial stage is therefore:
+
+AssortmentDefinition
+    ↓
+MetadataCompiler
+    ↓
+CatalogMetadata
+
+The resulting metadata becomes part of the configuration candidate.
+
+### 9.3 Configuration Candidate Construction
+
+The compiled Standard Configuration metadata shall be assembled into the
+Phase 3 configuration candidate.
+
+The candidate represents configuration that is being prepared for activation
+and is not yet available as runtime configuration.
+
+The lifecycle boundary is:
+
+Candidate
+    ↓
+Validation
+    ↓
+Validated Candidate
+
+A candidate that has not successfully passed validation must not become the
+active configuration.
+
+### 9.4 Configuration Activation
+
+The validated Standard Configuration candidate shall be activated through
+ConfigurationActivator.
+
+The resulting object is an immutable ActiveConfiguration.
+
+The activation boundary is:
+
+Validated Candidate
+    ↓
+ConfigurationActivator
+    ↓
+ActiveConfiguration
+
+ConfigurationActivator owns the transition into the active configuration
+state.
+
+Runtime consumers do not participate in this lifecycle transition.
+
+### 9.5 Runtime Configuration Publication
+
+The activated configuration shall be made available to runtime operations
+through RuntimeConfigurationBinding.
+
+The binding represents the lifecycle boundary between configuration
+publication and runtime consumption.
+
+The conceptual path is:
+
+ActiveConfiguration
+    ↓
+RuntimeConfigurationBinding
+    ↓
+RuntimeConfigurationContext
+
+The binding must not be exposed as a configuration dependency of
+RuntimeResolver.
+
+Instead, a runtime operation obtains a context from the configuration
+consumption boundary and supplies that context explicitly to its runtime
+consumers.
+
+### 9.6 Runtime Configuration Context
+
+The vertical slice shall create or acquire a
+RuntimeConfigurationContext representing the active configuration.
+
+The context is the immutable snapshot used by a runtime operation.
+
+Once created, the context must remain associated with the configuration it
+represents even if the binding subsequently publishes another active
+configuration.
+
+Therefore:
+
+context_v1
+    ↓
+ActiveConfiguration_v1
+
+followed by:
+
+binding.bind(configuration_v2)
+
+must not change:
+
+context_v1
+    ↓
+ActiveConfiguration_v1
+
+A new runtime operation may explicitly acquire:
+
+context_v2
+    ↓
+ActiveConfiguration_v2
+
+### 9.7 Runtime Metadata Resolution
+
+The vertical slice shall resolve Standard Configuration metadata through
+MetadataResolver.
+
+The resolver receives the explicit runtime context:
+
+MetadataResolver.resolve(
+    context,
+    identifier,
+)
+
+MetadataResolver obtains metadata exclusively from the configuration
+represented by that context.
+
+No runtime component in the slice may access the underlying
+MetadataRegistry directly.
+
+### 9.8 Runtime Object Resolution
+
+The resolved metadata shall be passed through RuntimeResolver using the same
+explicit runtime context:
+
+RuntimeResolver.resolve(
+    context,
+    identifier,
+)
+
+For the Assortment definition the resulting runtime object shall be a
+CatalogRuntime.
+
+The resulting runtime object must expose the metadata corresponding to the
+Standard Configuration definition from which the active configuration was
+constructed.
+
+The runtime path is therefore:
+
+AssortmentDefinition
+    ↓
+Metadata
+    ↓
+ActiveConfiguration
+    ↓
+RuntimeConfigurationContext
+    ↓
+MetadataResolver
+    ↓
+RuntimeResolver
+    ↓
+CatalogRuntime
+
+### 9.9 Configuration Replacement Semantics
+
+The vertical slice shall explicitly demonstrate snapshot consistency across
+configuration replacement.
+
+At minimum, the test scenario shall contain two configuration versions
+containing distinguishable metadata for the same logical identifier:
+
+configuration_v1
+    ↓
+context_v1
+    ↓
+resolve(context_v1, identifier)
+    ↓
+runtime_v1
+
+Then:
+
+configuration_v2
+    ↓
+binding.bind(configuration_v2)
+    ↓
+context_v2
+    ↓
+resolve(context_v2, identifier)
+    ↓
+runtime_v2
+
+The slice must demonstrate both:
+
+context_v1 continues to resolve against configuration v1;
+context_v2 resolves against configuration v2.
+
+This establishes that runtime resolution follows snapshot semantics, not
+current-binding semantics.
+
+### 9.10 Runtime Boundary Invariants
+
+The following invariants shall hold throughout the vertical slice:
+
+Standard Configuration definitions are not runtime objects.
+Metadata compilation precedes configuration activation.
+Only validated configuration candidates may become active.
+ActiveConfiguration is immutable from the runtime perspective.
+RuntimeConfigurationBinding owns configuration publication, not runtime
+object resolution.
+RuntimeConfigurationContext represents an immutable configuration
+snapshot.
+MetadataResolver is the exclusive metadata resolution boundary.
+RuntimeResolver receives the context explicitly.
+RuntimeResolver has no dependency on MetadataRegistry.
+Runtime consumers do not discover the current configuration implicitly.
+Replacing the bound configuration does not mutate existing contexts.
+A runtime object resolved with a given context reflects that context's
+configuration.
+
+### 9.11 Tests
+
+Step 5 shall introduce an explicit vertical integration test for the complete
+Standard Configuration lifecycle.
+
+The test suite shall verify at least:
+
+Standard Configuration definition compilation;
+candidate construction;
+candidate validation;
+activation of the validated candidate;
+publication through RuntimeConfigurationBinding;
+acquisition of a RuntimeConfigurationContext;
+metadata resolution through MetadataResolver;
+runtime object resolution through RuntimeResolver;
+resulting CatalogRuntime;
+correspondence between runtime metadata and Standard Configuration
+definition;
+configuration replacement;
+preservation of an existing context after replacement;
+resolution of the same identifier against different configuration contexts;
+the vertical slice does not introduce any direct runtime dependency on
+MetadataRegistry.
+
+The test should exercise the real Phase 3 components rather than mocking the
+configuration lifecycle.
+
+The vertical test must demonstrate that configuration replacement changes
+the metadata observed through a newly acquired context while preserving the
+metadata observed through the previously acquired context.
+
+### 9.12 Validation
+
+Step 5 implementation shall pass:
+
+pytest
+ruff check .
+black --check .
+mypy src
+
+The existing test suite must remain green.
+
+The new vertical slice must be treated as an architectural acceptance test,
+not merely as another unit test.
+
+#### P3-QG5 — Standard Configuration Vertical Slice
+
+P3-QG5 closes only when all of the following are true:
+
+Standard Configuration is compiled into metadata;
+metadata is assembled into a configuration candidate;
+the candidate is successfully validated;
+only the validated candidate is activated;
+an ActiveConfiguration is produced;
+the active configuration is published through
+RuntimeConfigurationBinding;
+a RuntimeConfigurationContext can be obtained from the published
+configuration;
+metadata is resolved through MetadataResolver;
+runtime objects are resolved through RuntimeResolver;
+the resulting Standard Configuration runtime object is correct;
+RuntimeResolver has no dependency on MetadataRegistry;
+no runtime consumer accesses MetadataRegistry directly;
+configuration replacement is supported;
+existing runtime contexts preserve their configuration snapshot;
+different contexts produce results according to their represented
+configuration;
+the complete vertical slice is covered by an integration/vertical test;
+pytest passes;
+ruff check . passes;
+black --check . passes;
+mypy src passes.
+Expected Dependency Graph
+
+The completed Step 5 path is:
+
+Standard Configuration Definition
+            │
+            ▼
+    MetadataCompiler
+            │
+            ▼
+   ConfigurationCandidate
+            │
+         validate
+            │
+            ▼
+   Validated Candidate
+            │
+            ▼
+  ConfigurationActivator
+            │
+            ▼
+  ActiveConfiguration
+            │
+         publish
+            │
+            ▼
+
+RuntimeConfigurationBinding
+            │
+            acquire
+            │
+            ▼
+RuntimeConfigurationContext
+            │
+            ├──────► MetadataResolver
+            │
+            └──────► RuntimeResolver
+                        │
+                        ▼
+                    CatalogRuntime
+
+RuntimeResolver receives the same RuntimeConfigurationContext explicitly and
+uses MetadataResolver as its metadata resolution boundary.
+
+RuntimeResolver does not depend on RuntimeConfigurationBinding and does not
+discover the active configuration.
+
+### Exit State
+
+When P3-QG5 closes, AcCoreD will have its first complete Standard
+Configuration runtime path exercising the Phase 3 architecture from
+configuration definition through executable runtime object resolution.
+
+The resulting architecture will demonstrate that configuration lifecycle,
+configuration publication, runtime context, metadata resolution, and runtime
+object resolution are separate but composable responsibilities.
+
+The Standard Configuration vertical slice will therefore serve as the
+reference integration path for subsequent runtime consumers and future
+configuration-driven modules.
+
 ## 10. Step 6 — Published Configuration Immutability
 Objective
 
@@ -793,6 +1177,7 @@ runtime consumers cannot mutate published metadata;
 existing contexts remain coherent;
 configuration replacement creates a new published state rather than mutating
 the previous snapshot.
+
 ## 11. Step 7 — Phase 3 Audit
 
 The final audit shall verify:

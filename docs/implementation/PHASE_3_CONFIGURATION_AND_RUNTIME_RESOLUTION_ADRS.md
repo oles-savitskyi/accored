@@ -537,3 +537,365 @@ Step 4 is complete only when P3-QG4 confirms:
 - standard bootstrap and vertical consumers are migrated;
 - public APIs are aligned;
 - pytest, ruff, black and mypy pass.
+
+## ADR-005 — Standard Configuration as the First End-to-End Runtime Configuration Slice
+
+Status: Accepted
+
+Phase: Phase 3 — Runtime Configuration Consumption & Resolution
+
+Decision: The Standard Configuration shall serve as the first end-to-end
+vertical slice demonstrating the complete Phase 3 configuration lifecycle and
+runtime resolution path.
+
+### Context
+
+Phase 2 established the lifecycle by which configuration definitions can be
+validated and activated.
+
+Phase 3 subsequently established the runtime consumption boundaries:
+
+ActiveConfiguration
+    ↓
+RuntimeConfigurationContext
+    ↓
+MetadataResolver
+    ↓
+RuntimeResolver
+    ↓
+Runtime Object
+
+Step 4 established that RuntimeResolver consumes an explicitly supplied
+RuntimeConfigurationContext and does not access MetadataRegistry or
+RuntimeConfigurationBinding directly.
+
+The architecture has therefore established the individual boundaries, but the
+complete lifecycle has not yet been demonstrated through one integrated
+runtime path.
+
+A vertical slice is required to prove that these boundaries compose correctly.
+
+Standard Configuration is the appropriate first slice because it is already
+the project's canonical configuration and already provides real catalog
+definitions and metadata.
+
+The slice must therefore demonstrate not merely that each component works in
+isolation, but that a Standard Configuration definition can travel through the
+complete configuration lifecycle and become an executable runtime object.
+
+### Decision
+
+The first complete Phase 3 vertical slice shall use Standard Configuration and
+shall follow this path:
+
+Standard Configuration Definition
+    ↓
+MetadataCompiler
+    ↓
+ConfigurationCandidate
+    ↓
+Validation
+    ↓
+ConfigurationActivator
+    ↓
+ActiveConfiguration
+    ↓
+RuntimeConfigurationBinding
+    ↓
+RuntimeConfigurationContext
+    ↓
+MetadataResolver
+    ↓
+RuntimeResolver
+    ↓
+CatalogRuntime
+
+The vertical slice is an architectural acceptance path for the Phase 3 runtime
+configuration model.
+
+It must use the actual Phase 3 lifecycle components rather than introducing a
+parallel or simplified configuration path.
+
+### Architectural Responsibilities
+
+Each stage retains its existing responsibility.
+
+### Standard Configuration Definition
+
+Defines the intended configuration model and remains independent from runtime
+object construction.
+
+### MetadataCompiler
+
+Transforms the configuration definition into executable metadata.
+
+### ConfigurationCandidate
+
+Represents configuration under construction and not yet available as active
+runtime configuration.
+
+### Validation
+
+Determines whether the candidate satisfies the configuration validity
+requirements.
+
+### ConfigurationActivator
+
+Transforms a validated configuration candidate into an
+ActiveConfiguration.
+
+ConfigurationActivator owns activation, but does not publish the resulting
+configuration to runtime consumers.
+
+### ActiveConfiguration
+
+Represents the immutable runtime-visible configuration snapshot.
+
+### RuntimeConfigurationBinding
+
+Publishes and replaces the active configuration at the runtime configuration
+boundary and provides acquisition of immutable RuntimeConfigurationContext
+snapshots.
+
+### RuntimeConfigurationContext
+
+Represents the immutable configuration snapshot used by one runtime operation.
+
+### MetadataResolver
+
+Resolves metadata exclusively from the supplied runtime configuration
+context.
+
+### RuntimeResolver
+
+Converts resolved supported metadata into executable runtime objects and does
+not discover configuration itself.
+
+### CatalogRuntime
+
+Represents the executable runtime object produced from the resolved
+CatalogMetadata.
+
+### Configuration Lifecycle Boundary
+
+The vertical slice shall preserve the distinction between preparing,
+activating, publishing, and consuming configuration.
+
+Therefore:
+
+Candidate
+    ↓
+Validation
+    ↓
+Activation
+    ↓
+Publication
+    ↓
+Consumption
+
+must remain separate architectural stages.
+
+Runtime object resolution must not occur against an unvalidated candidate.
+
+RuntimeResolver must not become responsible for activation or publication.
+
+Snapshot Semantics
+
+The vertical slice shall explicitly validate configuration snapshot semantics.
+
+Given:
+
+ActiveConfiguration_v1
+    ↓
+context_v1
+
+and subsequently:
+
+ActiveConfiguration_v2
+    ↓
+binding.bind(v2)
+
+the existing context_v1 must continue to represent configuration v1.
+
+A newly acquired context:
+
+context_v2
+
+must represent configuration v2.
+
+Therefore:
+
+resolve(context_v1, identifier)
+    → runtime_v1(metadata_v1)
+
+resolve(context_v2, identifier)
+    → runtime_v2(metadata_v2)
+
+when the two configurations contain different metadata for the same logical
+identifier.
+
+The meaning of a runtime operation is determined by the context supplied to
+that operation, not by the configuration currently published by the binding.
+
+### Dependency Rules
+
+The vertical slice must preserve the following dependency boundaries.
+
+Allowed:
+
+ConfigurationActivator
+    → ActiveConfiguration
+
+
+RuntimeConfigurationBinding
+    → ActiveConfiguration
+
+
+RuntimeConfigurationContext
+    → ActiveConfiguration
+
+
+MetadataResolver
+    → RuntimeConfigurationContext
+
+
+RuntimeResolver
+    → MetadataResolver
+
+
+RuntimeResolver.resolve(...)
+    → RuntimeConfigurationContext
+
+Prohibited:
+
+RuntimeResolver
+    ✕→ MetadataRegistry
+
+
+RuntimeResolver
+    ✕→ RuntimeConfigurationBinding
+
+
+RuntimeResolver
+    ✕→ ConfigurationActivator
+
+
+RuntimeResolver
+    ✕→ ConfigurationLoader
+
+
+Runtime consumers
+    ✕→ direct MetadataRegistry access
+
+These boundaries are architectural constraints, not merely implementation
+preferences.
+
+### Why Standard Configuration
+
+Standard Configuration is selected as the first vertical slice because it
+provides a concrete, existing configuration model without requiring new domain
+functionality.
+
+The Assortment catalog is a suitable representative object because it
+already participates in the Standard Configuration definition and catalog
+runtime model.
+
+The slice therefore validates the architecture using real configuration
+artifacts rather than synthetic infrastructure-only objects.
+
+### Error Ownership
+
+The vertical slice shall preserve existing error ownership.
+
+Validation errors remain owned by the configuration validation layer.
+
+Activation errors remain owned by ConfigurationActivator.
+
+Metadata lookup errors remain owned by MetadataResolver.
+
+Unsupported metadata types remain the responsibility of RuntimeResolver.
+
+The vertical slice must not introduce a new cross-layer exception hierarchy.
+
+### Non-Goals
+
+ADR-005 does not introduce:
+
+new metadata types;
+new runtime object types;
+configuration persistence;
+runtime caching;
+concurrent configuration management;
+automatic context propagation;
+implicit current-configuration lookup inside runtime consumers;
+a generalized runtime factory framework;
+changes to the configuration lifecycle model established by Phase 2.
+Consequences
+Positive
+The complete Phase 3 architecture becomes executable and testable as one
+coherent path.
+Configuration lifecycle and runtime consumption boundaries are validated
+together.
+Standard Configuration becomes the reference implementation for future
+configuration-driven runtime consumers.
+Snapshot semantics are verified by an actual integration path.
+Architectural regressions become detectable through a high-value vertical
+test.
+The runtime layer remains independent of configuration storage and
+publication mechanisms.
+Negative
+The integration test is more complex than the existing unit tests.
+The bootstrap/composition logic must now exercise the complete lifecycle.
+Configuration replacement must be represented explicitly in the test.
+The slice may expose lifecycle gaps that were not visible in isolated unit
+tests.
+
+### Quality Gate
+
+ADR-005 is considered implemented when P3-QG5 confirms:
+
+Standard Configuration passes through the complete Phase 3 lifecycle;
+only validated candidates become active;
+active configuration is published through the binding boundary;
+runtime context represents the published configuration snapshot;
+metadata resolution occurs through MetadataResolver;
+runtime resolution occurs through RuntimeResolver;
+no runtime consumer bypasses MetadataResolver;
+no runtime consumer accesses MetadataRegistry directly;
+configuration replacement preserves existing context semantics;
+different contexts resolve against their respective configurations;
+the resulting CatalogRuntime corresponds to the Standard Configuration
+metadata;
+the complete vertical slice passes;
+the full test suite and static validation remain green.
+
+### Architectural Result
+
+After ADR-005 is implemented, the reference runtime path becomes:
+
+Standard Configuration
+    ↓
+Definition
+    ↓
+Metadata
+    ↓
+Candidate
+    ↓
+Validation
+    ↓
+Activation
+    ↓
+ActiveConfiguration
+    ↓
+Binding
+    ↓
+RuntimeConfigurationContext
+    ↓
+MetadataResolver
+    ↓
+RuntimeResolver
+    ↓
+CatalogRuntime
+
+This path becomes the canonical integration pattern for future runtime
+consumers of configuration-driven metadata.
