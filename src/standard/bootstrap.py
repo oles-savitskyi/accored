@@ -27,7 +27,7 @@ class StandardConfigurationBootstrap:
         configuration = ActiveConfiguration(
             identity=ConfigurationIdentity("standard"),
             version=ConfigurationVersion(1),
-            metadata_registry=registry,
+            published_metadata=registry.publish(),
         )
 
         context = RuntimeConfigurationContext(configuration)

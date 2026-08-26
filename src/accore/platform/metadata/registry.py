@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from accore.platform.foundation import Identifier
 from accore.platform.metadata.base import Metadata
+from accore.platform.metadata.publication import PublishedMetadataView
 
 
 class MetadataRegistry:
@@ -31,3 +32,7 @@ class MetadataRegistry:
     def all(self) -> tuple[Metadata, ...]:
         """Return all registered metadata."""
         return tuple(self._metadata.values())
+
+    def publish(self) -> PublishedMetadataView:
+        """Create an immutable publication snapshot."""
+        return PublishedMetadataView(self.all())

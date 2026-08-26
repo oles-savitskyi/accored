@@ -1153,30 +1153,39 @@ reference integration path for subsequent runtime consumers and future
 configuration-driven modules.
 
 ## 10. Step 6 — Published Configuration Immutability
+
 Objective
 
 Ensure runtime consumers cannot mutate published configuration semantics.
+
+Detailed implementation plan:
+
+`docs/implementation/PHASE_3_STEP_6_IMPLEMENTATION_PLAN.md`
+
+Architecture Baseline:
+
+Step 6 Mutation Surface Inventory v1.0.
 
 Architectural requirement
 
 Published metadata is immutable from the runtime consumer's perspective.
 
-The exact mechanism remains an implementation decision.
+The publication boundary must prevent mutation of the complete published
+configuration graph.
 
-Possible mechanisms:
-
-immutable registry;
-read-only view;
-immutable mapping;
-private publication storage.
 Tests
 
 Verify that:
 
-runtime consumers cannot mutate published metadata;
-existing contexts remain coherent;
-configuration replacement creates a new published state rather than mutating
-the previous snapshot.
+- runtime consumers cannot mutate published metadata;
+- nested metadata structures cannot be mutated;
+- published registry state cannot be mutated;
+- existing contexts remain coherent;
+- configuration replacement creates a new published state rather than
+  mutating the previous snapshot.
+
+P3-QG6 closes only after the detailed Step 6 implementation plan has been
+satisfied and all validation gates pass.
 
 ## 11. Step 7 — Phase 3 Audit
 

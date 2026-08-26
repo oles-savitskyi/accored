@@ -7,7 +7,12 @@ from accore.platform.configuration import (
     ConfigurationLifecycleState,
     ConfigurationVersion,
 )
-from accore.platform.metadata.registry import MetadataRegistry
+from accore.platform.foundation import Identifier
+from accore.platform.metadata import (
+    CatalogMetadata,
+    MetadataRegistry,
+    PublishedMetadataView,
+)
 
 
 def make_candidate(
@@ -33,7 +38,7 @@ def test_activation_creates_active_configuration() -> None:
 
     assert active.identity == candidate.identity
     assert active.version == candidate.version
-    assert active.metadata_registry is candidate.metadata_registry
+    assert active.published_metadata.all() == candidate.metadata_registry.all()
 
 
 def test_activation_is_stateless() -> None:
@@ -83,3 +88,34 @@ def test_activator_does_not_retain_active_configuration() -> None:
     activator = ConfigurationActivator()
 
     assert not hasattr(activator, "_active_configuration")
+
+
+def test_activation_publishes_metadata_view() -> None:
+    activator = ConfigurationActivator()
+    candidate = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
+
+    active = activator.activate(candidate)
+
+    assert isinstance(active.published_metadata, PublishedMetadataView)
+    assert active.published_metadata.all() == candidate.metadata_registry.all()
+
+
+def test_active_configuration_keeps_published_metadata_snapshot() -> None:
+    activator = ConfigurationActivator()
+    candidate = make_candidate(state=ConfigurationLifecycleState.VALIDATED)
+    active = activator.activate(candidate)
+
+    original_metadata = active.published_metadata.all()
+
+    # После activation candidate registry остается assembly-time storage.
+    extra_identifier = Identifier("01ARZ3NDEKTSV4RRFFQ69G5FAW")
+    extra_metadata = CatalogMetadata(
+        identifier=extra_identifier,
+        name="Later Catalog",
+        source_definition_id=extra_identifier,
+    )
+
+    candidate.metadata_registry.register(extra_metadata)
+
+    assert active.published_metadata.all() == original_metadata
+    assert not active.published_metadata.contains(extra_identifier)

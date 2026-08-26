@@ -18,10 +18,11 @@ def make_configuration(
     identity: str = "standard",
     version: int = 1,
 ) -> ActiveConfiguration:
+    registry = MetadataRegistry()
     return ActiveConfiguration(
         identity=ConfigurationIdentity(identity),
         version=ConfigurationVersion(version),
-        metadata_registry=MetadataRegistry(),
+        published_metadata=registry.publish(),
     )
 
 
@@ -59,13 +60,13 @@ def test_version_is_preserved() -> None:
     assert binding.get().version == configuration.version
 
 
-def test_metadata_registry_is_preserved() -> None:
+def test_published_metadata_is_preserved() -> None:
     binding = RuntimeConfigurationBinding()
     configuration = make_configuration()
 
     binding.bind(configuration)
 
-    assert binding.get().metadata_registry is configuration.metadata_registry
+    assert binding.get().published_metadata is configuration.published_metadata
 
 
 def test_replacement_succeeds() -> None:

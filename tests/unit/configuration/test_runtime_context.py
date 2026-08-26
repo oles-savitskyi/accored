@@ -17,10 +17,11 @@ def make_configuration(
     identity: str = "standard",
     version: int = 1,
 ) -> ActiveConfiguration:
+    registry = MetadataRegistry()
     return ActiveConfiguration(
         identity=ConfigurationIdentity(identity),
         version=ConfigurationVersion(version),
-        metadata_registry=MetadataRegistry(),
+        published_metadata=registry.publish(),
     )
 
 

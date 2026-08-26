@@ -41,7 +41,7 @@ def test_phase2_definition_to_runtime_vertical_slice() -> None:
     configuration = ActiveConfiguration(
         identity=ConfigurationIdentity("standard"),
         version=ConfigurationVersion(1),
-        metadata_registry=registry,
+        published_metadata=registry.publish(),
     )
     context = RuntimeConfigurationContext(configuration)
     resolver = RuntimeResolver(MetadataResolver())

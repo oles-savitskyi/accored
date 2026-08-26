@@ -38,7 +38,7 @@ def make_runtime_resolver(
     configuration = ActiveConfiguration(
         identity=ConfigurationIdentity("standard"),
         version=ConfigurationVersion(1),
-        metadata_registry=registry,
+        published_metadata=registry.publish(),
     )
 
     context = RuntimeConfigurationContext(configuration)
@@ -86,18 +86,18 @@ def test_resolution_does_not_modify_configuration_metadata() -> None:
     configuration = ActiveConfiguration(
         identity=ConfigurationIdentity("standard"),
         version=ConfigurationVersion(1),
-        metadata_registry=registry,
+        published_metadata=registry.publish(),
     )
     context = RuntimeConfigurationContext(configuration)
 
     resolver = RuntimeResolver(MetadataResolver())
 
-    metadata_before = configuration.metadata_registry.get(metadata.identifier)
+    metadata_before = configuration.published_metadata.get(metadata.identifier)
 
     resolved = resolver.resolve(context, metadata.identifier)
 
     assert resolved.metadata is metadata
-    assert configuration.metadata_registry.get(metadata.identifier) is metadata_before
+    assert configuration.published_metadata.get(metadata.identifier) is metadata_before
 
 
 def test_resolution_uses_supplied_context() -> None:

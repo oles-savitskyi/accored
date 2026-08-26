@@ -31,6 +31,6 @@ class MetadataResolver:
                 supplied runtime configuration context.
         """
         try:
-            return context.configuration.metadata_registry.get(identifier)
+            return context.configuration.published_metadata.get(identifier)
         except KeyError as exc:
             raise MetadataResolutionError(identifier) from exc

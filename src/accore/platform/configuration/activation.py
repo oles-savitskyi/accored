@@ -8,7 +8,7 @@ from accore.platform.configuration.identity import (
     ConfigurationVersion,
 )
 from accore.platform.configuration.lifecycle import ConfigurationLifecycleState
-from accore.platform.metadata.registry import MetadataRegistry
+from accore.platform.metadata.publication import PublishedMetadataView
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,7 +17,7 @@ class ActiveConfiguration:
 
     identity: ConfigurationIdentity
     version: ConfigurationVersion
-    metadata_registry: MetadataRegistry
+    published_metadata: PublishedMetadataView
 
 
 class ConfigurationActivator:
@@ -32,8 +32,10 @@ class ConfigurationActivator:
         if candidate.state is not ConfigurationLifecycleState.VALIDATED:
             raise ValueError("Only VALIDATED configuration candidates can be activated.")
 
+        published_metadata = candidate.metadata_registry.publish()
+
         return ActiveConfiguration(
             identity=candidate.identity,
             version=candidate.version,
-            metadata_registry=candidate.metadata_registry,
+            published_metadata=published_metadata,
         )

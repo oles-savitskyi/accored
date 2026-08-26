@@ -2,6 +2,7 @@ from accore.platform.metadata.attribute import AttributeMetadata
 from accore.platform.metadata.base import Metadata, MetadataType
 from accore.platform.metadata.catalog import CatalogMetadata
 from accore.platform.metadata.compiler import MetadataCompiler
+from accore.platform.metadata.publication import PublishedMetadataView
 from accore.platform.metadata.registry import MetadataRegistry
 from accore.platform.metadata.system_field import (
     SystemFieldMetadata,
@@ -15,6 +16,7 @@ __all__ = [
     "MetadataCompiler",
     "MetadataRegistry",
     "MetadataType",
+    "PublishedMetadataView",
     "SystemFieldMetadata",
     "SystemFieldType",
 ]
