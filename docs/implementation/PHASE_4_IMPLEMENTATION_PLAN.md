@@ -306,9 +306,34 @@ At minimum:
 
 ### Quality Gate
 
-**P4-QG2 — Object Instance Contract**
+**P4-S2 — Object Type / Object Instance Contract**
 
-Object Type and Object Instance are clearly separated.
+CatalogRuntime represents a resolved runtime object type.
+
+ObjectInstance represents one individual runtime entity of that type.
+
+ObjectInstance has:
+    identity: Identifier
+    object_type: CatalogRuntime
+
+CatalogRuntime retains metadata identity through its CatalogMetadata.
+
+Metadata Identity and Object Identity are separate concepts.
+
+RuntimeResolver resolves runtime object types and does not create
+ObjectInstance objects.
+
+I1. Every ObjectInstance has exactly one Object Identity.
+
+I2. Object Identity is independent from Metadata Identity.
+
+I3. Every ObjectInstance is associated with exactly one resolved Object Type.
+
+I4. CatalogRuntime represents an Object Type, not an Object Instance.
+
+I5. RuntimeResolver resolves Object Types and does not own instance creation.
+
+I6. ObjectInstance does not require Storage access merely to exist.
 
 ---
 
