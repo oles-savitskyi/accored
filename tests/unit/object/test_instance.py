@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from accore.platform.definitions import (
     AttributeDefinition,
     AttributeType,
@@ -7,14 +9,14 @@ from accore.platform.definitions import (
 )
 from accore.platform.foundation import Identifier
 from accore.platform.metadata import MetadataCompiler
-from accore.platform.object import ObjectInstance
+from accore.platform.object import ObjectInstance, ObjectState
 from accore.platform.runtime import CatalogRuntime
 
 
-def make_runtime(name: str = "Assortment") -> CatalogRuntime:
+def make_runtime() -> CatalogRuntime:
     definition = CatalogDefinition(
         identifier=Identifier.new(),
-        name=name,
+        name="Assortment",
         attributes=(
             AttributeDefinition(
                 name="code",
@@ -30,14 +32,19 @@ def make_runtime(name: str = "Assortment") -> CatalogRuntime:
     return CatalogRuntime(metadata=metadata)
 
 
+def make_instance(
+    identity: Identifier | None = None,
+) -> ObjectInstance:
+    return ObjectInstance(
+        identity=identity or Identifier.new(),
+        object_type=make_runtime(),
+    )
+
+
 def test_object_instance_preserves_identity() -> None:
     identity = Identifier.new()
-    object_type = make_runtime()
 
-    instance = ObjectInstance(
-        identity=identity,
-        object_type=object_type,
-    )
+    instance = make_instance(identity)
 
     assert instance.identity == identity
 
@@ -53,56 +60,41 @@ def test_object_instance_preserves_object_type() -> None:
     assert instance.object_type is object_type
 
 
-def test_object_instances_of_same_type_can_have_different_identities() -> None:
-    object_type = make_runtime()
+def test_object_instance_is_created_in_created_state() -> None:
+    instance = make_instance()
 
-    first = ObjectInstance(
-        identity=Identifier.new(),
-        object_type=object_type,
-    )
-    second = ObjectInstance(
-        identity=Identifier.new(),
-        object_type=object_type,
-    )
+    assert instance.state is ObjectState.CREATED
 
-    assert first != second
-    assert first.object_type is second.object_type
+
+def test_object_instance_state_is_not_constructor_argument() -> None:
+    with pytest.raises(TypeError):
+        ObjectInstance(
+            identity=Identifier.new(),
+            object_type=make_runtime(),
+            state=ObjectState.ACTIVE,
+        )
 
 
 def test_object_instances_with_same_identity_are_equal() -> None:
     identity = Identifier.new()
 
-    first = ObjectInstance(
-        identity=identity,
-        object_type=make_runtime("Assortment"),
-    )
-    second = ObjectInstance(
-        identity=identity,
-        object_type=make_runtime("Employees"),
-    )
+    first = make_instance(identity)
+    second = make_instance(identity)
 
     assert first == second
 
 
-def test_object_instance_equality_is_based_on_identity() -> None:
+def test_object_instances_with_different_identity_are_not_equal() -> None:
+    first = make_instance()
+    second = make_instance()
+
+    assert first != second
+
+
+def test_object_instance_hash_is_based_on_identity() -> None:
     identity = Identifier.new()
 
-    first = ObjectInstance(
-        identity=identity,
-        object_type=make_runtime("Assortment"),
-    )
-    second = ObjectInstance(
-        identity=Identifier.from_str(str(identity)),
-        object_type=make_runtime("Employees"),
-    )
+    first = make_instance(identity)
+    second = make_instance(identity)
 
-    assert first == second
-
-
-def test_object_instance_is_not_equal_to_other_types() -> None:
-    instance = ObjectInstance(
-        identity=Identifier.new(),
-        object_type=make_runtime(),
-    )
-
-    assert instance != object()
+    assert hash(first) == hash(second)

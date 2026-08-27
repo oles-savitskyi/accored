@@ -1,6 +1,6 @@
 # Phase 4 — Object Runtime Implementation Plan
 
-**Status:** Proposed  
+**Status:** In progress
 **Version:** 1.0  
 **Phase:** 4 — Object Runtime  
 **Architectural Definition:** `PHASE_4_ARCHITECTURAL_DEFINITION.md` v1.0  
@@ -201,7 +201,7 @@ Storage remains outside the runtime object boundary.
 
 # 6. Implementation Steps
 
-## Step 1 — Object Identity
+## Step 1 — Object Identity *Implemented*
 
 ### Objective
 
@@ -256,7 +256,7 @@ At minimum:
 
 ### Quality Gate
 
-**P4-QG1 — Object Identity**
+**P4-QG1 — Object Identity** CLOSED
 
 Object Identity is explicit at the Object Instance boundary, uses the
 existing immutable ULID-backed `Identifier`, and remains distinct from
@@ -264,7 +264,7 @@ Configuration Identity and Metadata Identity at the architectural level.
 
 ---
 
-# 7. Step 2 — Object Type / Object Instance Contract
+# 7. Step 2 — Object Type / Object Instance Contract *Implemented*
 
 ### Objective
 
@@ -306,7 +306,7 @@ At minimum:
 
 ### Quality Gate
 
-**P4-S2 — Object Type / Object Instance Contract**
+**P4-S2 — Object Type / Object Instance Contract** CLOSED
 
 CatalogRuntime represents a resolved runtime object type.
 
@@ -338,6 +338,7 @@ I6. ObjectInstance does not require Storage access merely to exist.
 ---
 
 # 8. Step 3 — Object State
+**Implemented**
 
 ### Objective
 
@@ -345,26 +346,36 @@ Define the runtime representation of object state.
 
 ### Scope
 
-Implement the minimum state mechanism required by the metadata-defined
-object.
+Implement the minimum generic state model required by an Object Instance.
 
-The initial implementation should prefer a simple generic state model over
-a generalized state engine.
+The initial implementation must establish object state representation
+and initial-state semantics without introducing a generalized state engine.
 
 ### Requirements
 
 Object State must:
 
 - belong to an Object Instance;
-- be mutable only through defined runtime semantics;
-- remain independent from persistence;
-- support metadata-defined attributes;
-- preserve object identity independently from state.
+- be independent from persistence;
+- preserve Object Identity independently from state;
+- define the generic runtime lifecycle states:
+  - `CREATED`;
+  - `ACTIVE`;
+  - `DISPOSED`;
+- ensure that every newly created Object Instance enters the runtime in
+  `CREATED` state;
+- prevent the initial state from being selected by the Object Instance
+  constructor.
+
+State transition operations are outside the current Step 3 implementation
+scope and will be introduced through a dedicated lifecycle boundary.
 
 ### Explicit Non-Goals
 
 Do not implement:
 
+- generalized state machines;
+- state transition orchestration;
 - dirty tracking;
 - Unit of Work;
 - repositories;
@@ -376,16 +387,19 @@ Do not implement:
 
 At minimum:
 
+- Object State values;
 - initial state;
-- state mutation;
-- state isolation between instances;
-- identity remains unchanged after mutation.
+- constructor cannot select the initial state;
+- each Object Instance owns its own Object State;
+- state is not shared between Object Instances;
+- identity remains independent from state;
+- Object Instances with the same identity remain equal regardless of state.
 
 ### Quality Gate
 
-**P4-QG3 — State / Persistence Separation**
+**P4-QG3 — Object State / Persistence Separation — CLOSED**
 
-Runtime state has no direct dependency on Storage.
+Object State has no direct dependency on Storage or persistence mechanisms.
 
 ---
 

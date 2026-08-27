@@ -1,20 +1,30 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from accore.platform.foundation.identity import Identifier
+from accore.platform.foundation import Identifier
+from accore.platform.object.state import ObjectState
 from accore.platform.runtime.catalog import CatalogRuntime
 
 
 @dataclass(eq=False, slots=True)
 class ObjectInstance:
-    """Runtime representation of an individual object instance."""
+    """Runtime instance of a concrete object type."""
 
     identity: Identifier
     object_type: CatalogRuntime
+    state: ObjectState = field(
+        default=ObjectState.CREATED,
+        init=False,
+    )
 
     def __eq__(self, other: object) -> bool:
+        """Compare object instances by identity."""
         if not isinstance(other, ObjectInstance):
             return NotImplemented
 
         return self.identity == other.identity
+
+    def __hash__(self) -> int:
+        """Return a hash based on object identity."""
+        return hash(self.identity)
