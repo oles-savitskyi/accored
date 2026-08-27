@@ -228,6 +228,21 @@ Object Identity must:
 - not represent Metadata Identity;
 - be suitable for use as an Object Instance identifier.
 
+### Identity Representation
+
+Phase 4 reuses the existing `foundation.Identifier` as the technical
+representation of Object Identity.
+
+No separate `ObjectIdentity` value type is introduced.
+
+`Identifier` remains a generic immutable ULID-backed primitive.
+
+Object Runtime gives that primitive Object Identity semantics by using it as
+the identity of an Object Instance.
+
+This keeps Object Identity distinct at the architectural level without
+introducing redundant identity wrappers.
+
 ### Tests
 
 At minimum:
@@ -243,7 +258,9 @@ At minimum:
 
 **P4-QG1 — Object Identity**
 
-Object Identity is explicit, immutable and distinct from metadata identity.
+Object Identity is explicit at the Object Instance boundary, uses the
+existing immutable ULID-backed `Identifier`, and remains distinct from
+Configuration Identity and Metadata Identity at the architectural level.
 
 ---
 
