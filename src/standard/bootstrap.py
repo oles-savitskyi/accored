@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from accore.platform.configuration import (
-    ActiveConfiguration,
+    ConfigurationActivator,
     ConfigurationIdentity,
+    ConfigurationLoader,
+    ConfigurationValidator,
     ConfigurationVersion,
     MetadataResolver,
+    RuntimeConfigurationBinding,
     RuntimeConfigurationContext,
 )
-from accore.platform.metadata import MetadataCompiler, MetadataRegistry
+from accore.platform.metadata import MetadataCompiler
 from accore.platform.runtime.resolution import RuntimeResolver
 from standard.definitions.catalogs import standard_catalog_definitions
 
@@ -17,20 +20,22 @@ class StandardConfigurationBootstrap:
 
     def initialize(self) -> tuple[RuntimeConfigurationContext, RuntimeResolver]:
         """Initialize the Standard Configuration runtime context."""
-        registry = MetadataRegistry()
-        compiler = MetadataCompiler()
-
-        for definition in standard_catalog_definitions():
-            metadata = compiler.compile(definition)
-            registry.register(metadata)
-
-        configuration = ActiveConfiguration(
+        loader = ConfigurationLoader(MetadataCompiler())
+        candidate = loader.load(
+            standard_catalog_definitions(),
             identity=ConfigurationIdentity("standard"),
             version=ConfigurationVersion(1),
-            published_metadata=registry.publish(),
         )
 
-        context = RuntimeConfigurationContext(configuration)
+        validator = ConfigurationValidator()
+        validator.validate(candidate)
+
+        active = ConfigurationActivator().activate(candidate)
+
+        binding = RuntimeConfigurationBinding()
+        binding.bind(active)
+
+        context = binding.acquire()
         resolver = RuntimeResolver(MetadataResolver())
 
         return context, resolver
