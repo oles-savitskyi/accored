@@ -1,27 +1,32 @@
 # Phase 4 — Object Runtime Implementation Plan
 
 **Status:** In progress
-**Version:** 1.0  
-**Phase:** 4 — Object Runtime  
-**Architectural Definition:** `PHASE_4_ARCHITECTURAL_DEFINITION.md` v1.0  
-**Depends on:** `phase-3-final`  
+
+**Version:** 1.1
+
+**Phase:** 4 — Object Runtime
+
+**Architectural Definition:** `PHASE_4_ARCHITECTURAL_DEFINITION.md` v1.0
+
+**Depends on:** `phase-3-final`
+
 **Architectural baseline:** `architecture-core-3.0`
 
 ---
 
-## 1. Purpose
+# 1. Purpose
 
 This document defines the implementation sequence for Phase 4.
 
 Phase 4 implements the Object Runtime boundary established by:
 
-- `PHASE_4_ARCHITECTURAL_DEFINITION.md`
-- ADR-P4-01 — Object Instance Model
-- ADR-P4-02 — Object Identity
-- ADR-P4-03 — Runtime Type Resolution vs Object Creation
-- ADR-P4-04 — Object Lifecycle
-- ADR-P4-05 — Object Context
-- ADR-P4-06 — Object State & Storage Boundary
+* `PHASE_4_ARCHITECTURAL_DEFINITION.md`
+* ADR-P4-01 — Object Instance Model
+* ADR-P4-02 — Object Identity
+* ADR-P4-03 — Runtime Type Resolution vs Object Creation
+* ADR-P4-04 — Object Lifecycle
+* ADR-P4-05 — Object Context
+* ADR-P4-06 — Object State & Storage Boundary
 
 The implementation must remain strictly within the architectural scope
 defined by those decisions.
@@ -36,14 +41,14 @@ metadata.
 
 The Phase 4 implementation must establish:
 
-- Object Identity;
-- Object Type / runtime type relationship;
-- Object State;
-- Object Context;
-- Object Lifecycle;
-- Object Creation Boundary;
-- RuntimeResolver integration;
-- Catalog / Assortment vertical slice.
+* Object Identity;
+* Object Type / runtime type relationship;
+* Object State;
+* Object Context;
+* Object Lifecycle;
+* Object Creation Boundary;
+* RuntimeResolver integration;
+* Catalog / Assortment vertical slice.
 
 The resulting runtime must remain independent from physical persistence.
 
@@ -55,39 +60,43 @@ Phase 4 starts from the `phase-3-final` baseline.
 
 Phase 3 already provides:
 
-    Configuration Definition
-            ↓
-    Metadata Compilation
-            ↓
-    Configuration Candidate
-            ↓
-    Validation
-            ↓
-    Activation
-            ↓
-    ActiveConfiguration
-            ↓
-    RuntimeConfigurationBinding
-            ↓
-    RuntimeConfigurationContext
-            ↓
-    MetadataResolver
-            ↓
-    RuntimeResolver
-            ↓
-    CatalogRuntime
+```
+Configuration Definition
+        ↓
+Metadata Compilation
+        ↓
+Configuration Candidate
+        ↓
+Validation
+        ↓
+Activation
+        ↓
+ActiveConfiguration
+        ↓
+RuntimeConfigurationBinding
+        ↓
+RuntimeConfigurationContext
+        ↓
+MetadataResolver
+        ↓
+RuntimeResolver
+        ↓
+CatalogRuntime
+```
 
 Phase 4 extends the final boundary:
 
-    RuntimeResolver
-          ↓
-    Runtime Object Type
-          ↓
-    Object Creation Boundary
-          ↓
-    Object Instance
-          ↓
-    Object Lifecycle
+```
+RuntimeResolver
+      ↓
+Runtime Object Type
+      ↓
+Object Creation Boundary
+      ↓
+Object Instance
+      ↓
+Object Lifecycle
+```
 
 ---
 
@@ -111,11 +120,11 @@ extensions.
 
 Phase 4 must not regress:
 
-- RuntimeConfigurationContext;
-- MetadataResolver;
-- RuntimeResolver;
-- configuration ownership;
-- snapshot semantics.
+* RuntimeConfigurationContext;
+* MetadataResolver;
+* RuntimeResolver;
+* configuration ownership;
+* snapshot semantics.
 
 ---
 
@@ -161,15 +170,14 @@ execution infrastructure.
 
 The intended dependency direction is:
 
-    runtime
-       ↓
-    object
+```
+runtime
+   ↓
+object
+```
 
-and not:
-
-    object
-       ↓
-    runtime configuration / metadata registry
+The Object Runtime must not independently resolve configuration, access
+MetadataRegistry, or discover runtime configuration globally.
 
 ---
 
@@ -177,31 +185,45 @@ and not:
 
 The target runtime is:
 
-    RuntimeConfigurationContext
-            ↓
-    MetadataResolver
-            ↓
-    RuntimeResolver
-            ↓
-    Runtime Object Type
-            ↓
-    Object Creation Boundary
-            ↓
-    Object Instance
-       ┌────┼──────────────┐
-       │    │              │
-       ▼    ▼              ▼
-    Identity State       Context
-       │
-       └────── Lifecycle
+```
+RuntimeConfigurationContext
+        ↓
+MetadataResolver
+        ↓
+RuntimeResolver
+        ↓
+Runtime Object Type
+        ↓
+Object Creation Boundary
+        ↓
+Object Instance
+   ┌────┼──────────────┐
+   │    │              │
+   ▼    ▼              ▼
+Identity State       Context
+   │
+   └────── Lifecycle
+```
 
 Storage remains outside the runtime object boundary.
+
+The distinction between runtime type and object instance is explicit:
+
+```
+CatalogMetadata
+      ↓
+CatalogRuntime
+(Runtime Object Type)
+      ↓
+ObjectInstance
+(individual runtime object)
+```
 
 ---
 
 # 6. Implementation Steps
 
-## Step 1 — Object Identity *Implemented*
+## Step 1 — Object Identity — Implemented
 
 ### Objective
 
@@ -211,22 +233,22 @@ Introduce the canonical Object Identity abstraction.
 
 Implement:
 
-- object identity value type;
-- ULID-based identity;
-- immutability;
-- equality semantics;
-- representation suitable for future references.
+* object identity semantics;
+* ULID-based identity;
+* immutability;
+* equality semantics;
+* representation suitable for future references.
 
 ### Requirements
 
 Object Identity must:
 
-- be immutable;
-- be independently constructible;
-- not depend on Storage;
-- not depend on MetadataRegistry;
-- not represent Metadata Identity;
-- be suitable for use as an Object Instance identifier.
+* be immutable;
+* be independently constructible;
+* not depend on Storage;
+* not depend on MetadataRegistry;
+* not represent Metadata Identity;
+* be suitable for use as an Object Instance identifier.
 
 ### Identity Representation
 
@@ -247,16 +269,16 @@ introducing redundant identity wrappers.
 
 At minimum:
 
-- identity generation;
-- uniqueness expectations;
-- equality;
-- inequality;
-- immutability;
-- representation.
+* identity generation;
+* uniqueness expectations;
+* equality;
+* inequality;
+* immutability;
+* representation.
 
 ### Quality Gate
 
-**P4-QG1 — Object Identity** CLOSED
+**P4-QG1 — Object Identity — CLOSED**
 
 Object Identity is explicit at the Object Instance boundary, uses the
 existing immutable ULID-backed `Identifier`, and remains distinct from
@@ -264,7 +286,7 @@ Configuration Identity and Metadata Identity at the architectural level.
 
 ---
 
-# 7. Step 2 — Object Type / Object Instance Contract *Implemented*
+# 7. Step 2 — Object Type / Object Instance Contract — Implemented
 
 ### Objective
 
@@ -274,11 +296,13 @@ Introduce the canonical Object Instance abstraction.
 
 Implement the minimum runtime object contract containing:
 
-- Object Identity;
-- Object Type;
-- Object State;
-- Object Context;
-- lifecycle state.
+* Object Identity;
+* Object Type;
+* Object State.
+
+Object Context and lifecycle operations are introduced by subsequent
+implementation steps and are not part of the initial ObjectInstance
+construction contract.
 
 The implementation must not introduce persistence.
 
@@ -286,42 +310,31 @@ The implementation must not introduce persistence.
 
 The object instance must:
 
-- represent one individual business object;
-- have exactly one Object Identity;
-- be associated with one runtime object type;
-- hold runtime state;
-- hold explicit object context;
-- expose lifecycle semantics.
+* represent one individual business object;
+* have exactly one Object Identity;
+* be associated with one runtime object type;
+* hold runtime state;
+* not require Storage access merely to exist.
 
-### Tests
+### Current Contract
 
-At minimum:
+The current Object Instance contract is:
 
-- instance creation;
-- identity association;
-- type association;
-- state association;
-- context association;
-- separation of two instances of the same type.
+```
+ObjectInstance
 
-### Quality Gate
-
-**P4-S2 — Object Type / Object Instance Contract** CLOSED
-
-CatalogRuntime represents a resolved runtime object type.
-
-ObjectInstance represents one individual runtime entity of that type.
-
-ObjectInstance has:
     identity: Identifier
+
     object_type: CatalogRuntime
 
-CatalogRuntime retains metadata identity through its CatalogMetadata.
+    state: ObjectState
+```
 
-Metadata Identity and Object Identity are separate concepts.
+`CatalogRuntime` represents a resolved runtime object type.
 
-RuntimeResolver resolves runtime object types and does not create
-ObjectInstance objects.
+`ObjectInstance` represents one individual runtime entity of that type.
+
+### Architectural Invariants
 
 I1. Every ObjectInstance has exactly one Object Identity.
 
@@ -335,10 +348,35 @@ I5. RuntimeResolver resolves Object Types and does not own instance creation.
 
 I6. ObjectInstance does not require Storage access merely to exist.
 
+I7. ObjectInstance equality is based on Object Identity, not Object State.
+
+### Tests
+
+At minimum:
+
+* instance creation;
+* identity association;
+* type association;
+* initial state association;
+* separation of two instances of the same type;
+* equality by identity.
+
+### Quality Gate
+
+**P4-S2 — Object Type / Object Instance Contract — CLOSED**
+
+CatalogRuntime represents a resolved runtime object type.
+
+ObjectInstance represents one individual runtime entity of that type.
+
+Metadata Identity and Object Identity are separate concepts.
+
+RuntimeResolver resolves runtime object types and does not create ObjectInstance
+objects.
+
 ---
 
-# 8. Step 3 — Object State
-**Implemented**
+# 8. Step 3 — Object State — Implemented
 
 ### Objective
 
@@ -355,45 +393,61 @@ and initial-state semantics without introducing a generalized state engine.
 
 Object State must:
 
-- belong to an Object Instance;
-- be independent from persistence;
-- preserve Object Identity independently from state;
-- define the generic runtime lifecycle states:
-  - `CREATED`;
-  - `ACTIVE`;
-  - `DISPOSED`;
-- ensure that every newly created Object Instance enters the runtime in
+* belong to an Object Instance;
+* be independent from persistence;
+* preserve Object Identity independently from state;
+* define the generic runtime lifecycle states:
+
+  * `CREATED`;
+  * `ACTIVE`;
+  * `DISPOSED`;
+* ensure that every newly created Object Instance enters the runtime in
   `CREATED` state;
-- prevent the initial state from being selected by the Object Instance
+* prevent the initial state from being selected by the Object Instance
   constructor.
 
 State transition operations are outside the current Step 3 implementation
 scope and will be introduced through a dedicated lifecycle boundary.
 
+### Current Initial-State Contract
+
+`ObjectInstance` establishes `ObjectState.CREATED` internally.
+
+The constructor does not expose an argument allowing callers to select the
+initial state.
+
+Therefore:
+
+```
+ObjectInstance(...)
+      ↓
+state == ObjectState.CREATED
+```
+
 ### Explicit Non-Goals
 
 Do not implement:
 
-- generalized state machines;
-- state transition orchestration;
-- dirty tracking;
-- Unit of Work;
-- repositories;
-- automatic persistence;
-- transactions;
-- optimistic locking.
+* generalized state machines;
+* state transition orchestration;
+* dirty tracking;
+* Unit of Work;
+* repositories;
+* automatic persistence;
+* transactions;
+* optimistic locking.
 
 ### Tests
 
 At minimum:
 
-- Object State values;
-- initial state;
-- constructor cannot select the initial state;
-- each Object Instance owns its own Object State;
-- state is not shared between Object Instances;
-- identity remains independent from state;
-- Object Instances with the same identity remain equal regardless of state.
+* Object State values;
+* initial state;
+* constructor cannot select the initial state;
+* each Object Instance owns its own Object State;
+* state is not shared between Object Instances;
+* identity remains independent from state;
+* Object Instances with the same identity remain equal regardless of state.
 
 ### Quality Gate
 
@@ -418,22 +472,44 @@ Integrate Object Context with the Phase 3
 
 Object Context must:
 
-- carry the relevant runtime configuration context;
-- preserve configuration snapshot semantics;
-- be explicit;
-- not activate configuration;
-- not access configuration binding directly;
-- not become a service locator.
+* carry the relevant runtime configuration context;
+* preserve configuration snapshot semantics;
+* be explicit;
+* not activate configuration;
+* not access configuration binding directly;
+* not become a service locator.
+
+Object Context represents the runtime context under which an Object Instance
+exists and operates.
+
+It must not become a replacement for `RuntimeConfigurationContext` and must
+not introduce a second configuration lifecycle.
+
+### Required Relationship
+
+The intended relationship is:
+
+```
+RuntimeConfigurationContext
+          ↓
+    Object Context
+          ↓
+    Object Instance
+```
+
+The exact implementation shape may be a dedicated object context abstraction
+or another cohesive representation, provided the architectural boundary
+remains explicit.
 
 ### Tests
 
 At minimum:
 
-- context creation;
-- configuration context association;
-- context immutability where applicable;
-- object retains its configuration snapshot;
-- changing active configuration does not silently change object context.
+* context creation;
+* configuration context association;
+* context immutability where applicable;
+* object retains its configuration snapshot;
+* changing active configuration does not silently change object context.
 
 ### Quality Gate
 
@@ -451,11 +527,13 @@ Implement the generic Object Runtime lifecycle.
 
 ### Lifecycle
 
-    create → Created
+```
+create → Created
 
-    Created → Active
+Created → Active
 
-    Active → Disposed
+Active → Disposed
+```
 
 Object creation produces an Object Instance in the Created state.
 
@@ -467,22 +545,27 @@ Disposed objects cannot be used for normal runtime operations.
 
 Implement:
 
-- lifecycle state;
-- legal transitions;
-- invalid transition errors;
-- disposed-object protection.
+* lifecycle state;
+* legal transitions;
+* invalid transition errors;
+* disposed-object protection.
+
+Lifecycle operations must remain independent from Configuration Lifecycle.
+
+Object lifecycle must not activate, deactivate, or otherwise mutate runtime
+configuration.
 
 ### Tests
 
 At minimum:
 
-- create → Created;
-- Created → Active;
-- Active → Disposed;
-- invalid Created → Disposed if prohibited by the implementation contract;
-- invalid operations on Disposed;
-- repeated disposal behavior;
-- lifecycle isolation between instances.
+* create → Created;
+* Created → Active;
+* Active → Disposed;
+* invalid Created → Disposed if prohibited by the implementation contract;
+* invalid operations on Disposed;
+* repeated disposal behavior;
+* lifecycle isolation between instances.
 
 ### Quality Gate
 
@@ -502,18 +585,22 @@ Introduce the explicit owner of Object Instance creation.
 
 Separate:
 
-    Runtime Type Resolution
+```
+Runtime Type Resolution
+```
 
 from:
 
-    Object Instance Creation
+```
+Object Instance Creation
+```
 
 The implementation mechanism may be:
 
-- dedicated creator;
-- factory;
-- type-bound creation capability;
-- another explicit abstraction.
+* dedicated creator;
+* factory;
+* type-bound creation capability;
+* another explicit abstraction.
 
 The exact class name is not architecturally mandated.
 
@@ -521,93 +608,121 @@ The exact class name is not architecturally mandated.
 
 Creation must establish:
 
-- Object Identity;
-- Object Type;
-- initial Object State;
-- Object Context;
-- Created lifecycle state.
+* Object Identity;
+* Object Type;
+* initial Object State;
+* Object Context;
+* Created lifecycle state.
 
 Creation must not:
 
-- persist;
-- activate configuration;
-- mutate MetadataRegistry;
-- implicitly use global configuration;
-- create a global object registry.
+* persist;
+* activate configuration;
+* mutate MetadataRegistry;
+* implicitly use global configuration;
+* create a global object registry.
+
+### Creation Dependency
+
+The intended flow is:
+
+```
+Runtime Object Type
+        +
+Object Context
+        ↓
+Object Creation Boundary
+        ↓
+ObjectInstance
+```
+
+Creation consumes an already resolved runtime type.
+
+It must not perform independent metadata resolution or configuration
+discovery.
 
 ### Tests
 
 At minimum:
 
-- creation from a resolved runtime type;
-- unique identity per created instance;
-- correct context;
-- correct initial state;
-- correct lifecycle state;
-- failure for unsupported runtime types.
+* creation from a resolved runtime type;
+* unique identity per created instance;
+* correct context;
+* correct initial state;
+* correct lifecycle state;
+* failure for unsupported runtime types.
 
 ### Quality Gate
 
 **P4-QG6 — Creation Ownership**
 
-One explicit creation boundary owns object instance creation.
+One explicit creation boundary owns Object Instance creation.
 
 ---
 
-# 12. Step 7 — RuntimeResolver → Object Runtime Migration
+# 12. Step 7 — RuntimeResolver → Object Runtime Integration
 
 ### Objective
 
 Integrate the Phase 4 Object Runtime with the Phase 3 RuntimeResolver
 without collapsing responsibilities.
 
-### Current responsibility
+### Current Responsibility
 
 RuntimeResolver resolves:
 
-    Metadata Identity
-          +
-    RuntimeConfigurationContext
-          ↓
-    Runtime Object Type
+```
+Metadata Identity
+      +
+RuntimeConfigurationContext
+      ↓
+Runtime Object Type
+```
 
 Phase 4 must preserve that responsibility.
 
-### Target responsibility
+### Target Responsibility
 
-    RuntimeResolver
-          ↓
-    Runtime Object Type
-          ↓
-    Object Creation Boundary
-          ↓
-    Object Instance
+```
+RuntimeResolver
+      ↓
+Runtime Object Type
+      ↓
+Object Creation Boundary
+      ↓
+Object Instance
+```
+
+RuntimeResolver remains a type resolver.
+
+Object creation remains a separate operation.
 
 ### Requirements
 
 RuntimeResolver must not become responsible for:
 
-- object persistence;
-- lifecycle management;
-- global registry;
-- configuration activation;
-- repository management.
+* object persistence;
+* lifecycle management;
+* global registry;
+* configuration activation;
+* repository management;
+* Object Instance ownership.
 
 ### Tests
 
 At minimum:
 
-- metadata identity resolves to runtime object type;
-- unsupported metadata fails correctly;
-- resolved type can be passed to creation boundary;
-- resolver remains context-explicit;
-- no direct MetadataRegistry dependency is introduced.
+* metadata identity resolves to runtime object type;
+* unsupported metadata fails correctly;
+* resolved type can be passed to creation boundary;
+* resolver remains context-explicit;
+* no direct MetadataRegistry dependency is introduced into Object Runtime.
 
 ### Quality Gate
 
 **P4-QG7 — RuntimeResolver Boundary**
 
-Runtime type resolution and object instance creation remain distinct.
+Runtime type resolution and Object Instance creation remain distinct.
 
 ---
 
@@ -621,29 +736,33 @@ Use the generic Object Runtime with a real Standard Configuration catalog.
 
 The initial representative object is:
 
-    Standard Configuration
-            ↓
-        Assortment
-            ↓
-       Catalog Object
+```
+Standard Configuration
+        ↓
+    Assortment
+        ↓
+   Catalog Object
+```
 
-### Target flow
+### Target Flow
 
-    Standard Configuration
-            ↓
-    Catalog Metadata
-            ↓
-    RuntimeConfigurationContext
-            ↓
-    MetadataResolver
-            ↓
-    RuntimeResolver
-            ↓
-    Catalog Runtime Type
-            ↓
-    Object Creation Boundary
-            ↓
-    Assortment Object Instance
+```
+Standard Configuration
+        ↓
+Catalog Metadata
+        ↓
+RuntimeConfigurationContext
+        ↓
+MetadataResolver
+        ↓
+RuntimeResolver
+        ↓
+Catalog Runtime Type
+        ↓
+Object Creation Boundary
+        ↓
+Assortment Object Instance
+```
 
 ### Requirements
 
@@ -651,11 +770,11 @@ Catalog-specific code must consume the generic Object Runtime contract.
 
 It must not introduce:
 
-- a separate identity model;
-- a separate lifecycle model;
-- a separate object context;
-- a catalog-specific generic factory;
-- a catalog-specific registry.
+* a separate identity model;
+* a separate lifecycle model;
+* a separate object context;
+* a catalog-specific generic factory;
+* a catalog-specific registry.
 
 ### Quality Gate
 
@@ -676,10 +795,10 @@ boundaries.
 
 Review:
 
-- `src/accore/platform/object/`;
-- existing runtime packages;
-- configuration package exports;
-- public API tests.
+* `src/accore/platform/object/`;
+* existing runtime packages;
+* configuration package exports;
+* public API tests.
 
 ### Requirements
 
@@ -690,9 +809,9 @@ stable enough for Phase 4.
 
 ### Tests
 
-- import tests;
-- public API contract tests;
-- forbidden/internal import checks where applicable.
+* import tests;
+* public API contract tests;
+* forbidden/internal import checks where applicable.
 
 ### Quality Gate
 
@@ -708,29 +827,54 @@ Phase 4 public API is explicit and minimal.
 
 Synchronize implementation and architecture documentation.
 
-### Documents to review
+### Documents to Review
 
-- `ARCHITECTURE_OVERVIEW.md`;
-- `GLOSSARY.md`;
-- Object Architecture documentation;
-- Runtime Architecture documentation;
-- Storage Architecture documentation;
-- Standard Configuration documentation;
-- Phase 4 ADRs;
-- `PHASE_4_ARCHITECTURAL_DEFINITION.md`.
+* `ARCHITECTURE_OVERVIEW.md`;
+* `GLOSSARY.md`;
+* Object Architecture documentation;
+* Runtime Architecture documentation;
+* Storage Architecture documentation;
+* Standard Configuration documentation;
+* Phase 4 ADRs;
+* `PHASE_4_ARCHITECTURAL_DEFINITION.md`;
+* `PHASE_4_IMPLEMENTATION_PLAN.md`.
 
-### Required alignment
+### Required Alignment
 
 The documentation must consistently distinguish:
 
-- Metadata Identity;
-- Object Identity;
-- Runtime Object Type;
-- Object Instance;
-- Object State;
-- Object Context;
-- Object Lifecycle;
-- Persistent Representation.
+* Metadata Identity;
+* Object Identity;
+* Runtime Object Type;
+* Object Instance;
+* Object State;
+* Object Context;
+* Object Lifecycle;
+* Persistent Representation.
+
+The documentation must also explicitly preserve the following distinction:
+
+```
+Metadata Identity
+      ≠
+Object Identity
+```
+
+and:
+
+```
+Runtime Object Type
+      ≠
+Object Instance
+```
+
+and:
+
+```
+Object State
+      ≠
+Persistent State
+```
 
 ### Quality Gate
 
@@ -747,12 +891,17 @@ documentation.
 
 Verify that Phase 4 does not regress earlier phases.
 
-### Required checks
+### Required Checks
 
-    pytest
-    ruff check
-    black --check
-    mypy src
+```
+pytest
+
+ruff check
+
+black --check
+
+mypy src
+```
 
 All existing Phase 3 tests must remain green.
 
@@ -770,13 +919,13 @@ All project quality checks pass.
 
 Before Phase 4 is tagged, perform a final audit against:
 
-- Phase 4 Architectural Definition;
-- ADR-P4-01;
-- ADR-P4-02;
-- ADR-P4-03;
-- ADR-P4-04;
-- ADR-P4-05;
-- ADR-P4-06.
+* Phase 4 Architectural Definition;
+* ADR-P4-01;
+* ADR-P4-02;
+* ADR-P4-03;
+* ADR-P4-04;
+* ADR-P4-05;
+* ADR-P4-06.
 
 The audit must verify:
 
@@ -784,13 +933,16 @@ The audit must verify:
 2. Object Type is distinct from Object Instance.
 3. Object State is distinct from persistent state.
 4. Object Context uses explicit runtime configuration context.
-5. Object lifecycle is independent from configuration lifecycle.
+5. Object lifecycle is independent of configuration lifecycle.
 6. Object creation has one explicit owner.
 7. RuntimeResolver remains a type resolver.
 8. Storage remains outside Object Runtime.
 9. Catalog uses the generic Object Runtime.
 10. No premature Object Registry exists.
 11. Phase 3 invariants remain intact.
+12. No redundant ObjectIdentity abstraction has been introduced.
+13. Object Instance equality is based on Object Identity rather than mutable
+    runtime state.
 
 ### Quality Gate
 
@@ -804,41 +956,47 @@ All Phase 4 architectural invariants are satisfied.
 
 The implementation order is intentionally linear:
 
-    Step 1
-    Object Identity
-        ↓
-    Step 2
-    Object Instance
-        ↓
-    Step 3
-    Object State
-        ↓
-    Step 4
-    Object Context
-        ↓
-    Step 5
-    Object Lifecycle
-        ↓
-    Step 6
-    Object Creation Boundary
-        ↓
-    Step 7
-    RuntimeResolver Integration
-        ↓
-    Step 8
-    Catalog Integration
-        ↓
-    Step 9
-    Public API
-        ↓
-    Step 10
-    Documentation
-        ↓
-    Step 11
-    Regression
-        ↓
-    Step 12
-    Final Audit
+```
+Step 1
+Object Identity
+    ↓
+Step 2
+Object Instance / Object Type Contract
+    ↓
+Step 3
+Object State Semantics
+    ↓
+Step 4
+Object Context
+    ↓
+Step 5
+Object Lifecycle
+    ↓
+Step 6
+Object Creation Boundary
+    ↓
+Step 7
+RuntimeResolver Integration
+    ↓
+Step 8
+Catalog Integration
+    ↓
+Step 9
+Public API
+    ↓
+Step 10
+Documentation
+    ↓
+Step 11
+Regression
+    ↓
+Step 12
+Final Audit
+```
+
+Step 3 refines the state semantics of the Object Instance introduced by
+Step 2. It does not introduce a separate object identity or persistence
+model.
 
 ---
 
@@ -847,28 +1005,45 @@ The implementation order is intentionally linear:
 Phase 4 introduces the Object Runtime package as a new architectural
 boundary.
 
-The initial implementation should remain minimal:
+The current minimal implementation is:
 
-    src/accore/platform/
-        object/
-            identity.py
-            instance.py
+```
+src/accore/platform/
+
+    object/
+
+        instance.py
+
+        state.py
+```
+
+No separate `identity.py` module is required.
+
+Object Identity is represented by the existing
+`foundation.Identifier` at the `ObjectInstance` boundary.
 
 Additional modules such as:
 
-    context.py
-    lifecycle.py
-    state.py
-    creation.py
+```
+context.py
+
+lifecycle.py
+
+creation.py
+```
 
 may be introduced when implementation cohesion or public API boundaries
 justify them.
 
 The package must not duplicate responsibilities already owned by:
 
-    configuration/
-    metadata/
-    runtime/
+```
+configuration/
+
+metadata/
+
+runtime/
+```
 
 The exact module decomposition remains an implementation decision, provided
 the Phase 4 ADRs and architectural invariants remain satisfied.
@@ -883,12 +1058,12 @@ Phase 4 testing is divided into four levels.
 
 Test individual:
 
-- identity;
-- state;
-- context;
-- lifecycle;
-- object instance;
-- creation boundary.
+* identity semantics;
+* state;
+* context;
+* lifecycle;
+* object instance;
+* creation boundary.
 
 ---
 
@@ -896,10 +1071,10 @@ Test individual:
 
 Test:
 
-- RuntimeResolver → Object Creation;
-- Object Runtime → RuntimeConfigurationContext;
-- Object Runtime → Storage boundary;
-- Catalog → Generic Object Runtime.
+* RuntimeResolver → Object Creation;
+* Object Runtime → RuntimeConfigurationContext;
+* Object Runtime → Storage boundary;
+* Catalog → Generic Object Runtime.
 
 ---
 
@@ -907,15 +1082,17 @@ Test:
 
 Verify:
 
-    Standard Configuration
-        ↓
-    Assortment Metadata
-        ↓
-    Runtime Resolution
-        ↓
-    Object Creation
-        ↓
-    Assortment Object Instance
+```
+Standard Configuration
+    ↓
+Assortment Metadata
+    ↓
+Runtime Resolution
+    ↓
+Object Creation
+    ↓
+Assortment Object Instance
+```
 
 ---
 
@@ -931,20 +1108,24 @@ Phase 4 should introduce explicit object-level failures where necessary.
 
 At minimum, distinguish:
 
-- object creation failure;
-- unsupported runtime object type;
-- invalid object state;
-- invalid lifecycle transition;
-- invalid object context;
-- operation on disposed object.
+* object creation failure;
+* unsupported runtime object type;
+* invalid object state;
+* invalid lifecycle transition;
+* invalid object context;
+* operation on disposed object.
 
 Storage failures must not be represented as generic Object Runtime failures.
+
+Configuration activation failures must remain configuration-level failures.
+
+Metadata resolution failures must remain metadata/runtime-resolution failures.
 
 ---
 
 # 22. Explicitly Deferred Work
 
-The following work is intentionally deferred:
+The following work is intentionally deferred.
 
 ### Object Registry
 
@@ -1004,23 +1185,23 @@ Future downstream subsystem.
 
 Phase 4 is complete when:
 
-- [ ] Object Identity is implemented.
-- [ ] Object Instance contract is implemented.
-- [ ] Object State is implemented.
-- [ ] Object Context is implemented.
-- [ ] Object Lifecycle is implemented.
-- [ ] Object Creation Boundary is implemented.
-- [ ] RuntimeResolver integration is complete.
-- [ ] Assortment uses the generic Object Runtime.
-- [ ] No Storage dependency exists in Object Runtime.
-- [ ] No Object Registry has been introduced without justification.
-- [ ] Public APIs are aligned.
-- [ ] Documentation is aligned.
-- [ ] Unit tests pass.
-- [ ] Boundary tests pass.
-- [ ] Vertical slice passes.
-- [ ] Full regression passes.
-- [ ] Final architectural audit passes.
+* [ ] Object Identity is implemented.
+* [ ] Object Instance contract is implemented.
+* [ ] Object State is implemented.
+* [ ] Object Context is implemented.
+* [ ] Object Lifecycle is implemented.
+* [ ] Object Creation Boundary is implemented.
+* [ ] RuntimeResolver integration is complete.
+* [ ] Assortment uses the generic Object Runtime.
+* [ ] No Storage dependency exists in Object Runtime.
+* [ ] No Object Registry has been introduced without justification.
+* [ ] Public APIs are aligned.
+* [ ] Documentation is aligned.
+* [ ] Unit tests pass.
+* [ ] Boundary tests pass.
+* [ ] Vertical slice passes.
+* [ ] Full regression passes.
+* [ ] Final architectural audit passes.
 
 ---
 
@@ -1029,25 +1210,31 @@ Phase 4 is complete when:
 The Phase 4 implementation is successful when AcCoreD can perform the
 following operation without accessing physical persistence:
 
-    Resolve Standard Configuration
-            ↓
-    Resolve Assortment Metadata
-            ↓
-    Resolve Assortment Runtime Type
-            ↓
-    Create Assortment Object Instance
-            ↓
-    Assign Object Identity
-            ↓
-    Initialize Object State
-            ↓
-    Bind Object Context
-            ↓
-    Transition Object to Active
-            ↓
-    Execute a valid object operation
+```
+Resolve Standard Configuration
+        ↓
+Resolve Assortment Metadata
+        ↓
+Resolve Assortment Runtime Type
+        ↓
+Create Assortment Object Instance
+        ↓
+Assign Object Identity
+        ↓
+Initialize Object State
+        ↓
+Bind Object Context
+        ↓
+Transition Object to Active
+        ↓
+Execute a valid object operation
+```
 
 while preserving all Phase 3 configuration and runtime boundaries.
+
+The `Transition Object to Active` operation is a Phase 4 end-state
+criterion and is not expected to be available before the Object Lifecycle
+step is implemented.
 
 ---
 
@@ -1055,29 +1242,38 @@ while preserving all Phase 3 configuration and runtime boundaries.
 
 At the end of Phase 4 the canonical runtime flow is:
 
-    Configuration
-          ↓
-    RuntimeConfigurationContext
-          ↓
-    MetadataResolver
-          ↓
-    RuntimeResolver
-          ↓
-    Runtime Object Type
-          ↓
-    Object Creation Boundary
-          ↓
-    Object Instance
-       ├── Identity
-       ├── Type
-       ├── State
-       ├── Context
-       └── Lifecycle
-          ↓
-    Future Persistence Boundary
-          ↓
-    Storage
+```
+Configuration
+      ↓
+RuntimeConfigurationContext
+      ↓
+MetadataResolver
+      ↓
+RuntimeResolver
+      ↓
+Runtime Object Type
+      ↓
+Object Creation Boundary
+      ↓
+Object Instance
+   ├── Identity
+   ├── Type
+   ├── State
+   ├── Context
+   └── Lifecycle
+      ↓
+Future Persistence Boundary
+      ↓
+Storage
+```
 
 The Object Runtime is therefore established as a stable architectural
 boundary between runtime type resolution and future persistence/business
 subsystems.
+
+The Object Runtime does not own metadata resolution, configuration
+activation, persistence, or global object registration.
+
+Object Identity is represented by the existing immutable
+`foundation.Identifier`, while remaining architecturally distinct from
+Metadata Identity and Configuration Identity.
