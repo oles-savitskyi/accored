@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from accore.platform.configuration import RuntimeConfigurationContext
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ObjectContext:
-    """Immutable execution context of an object instance."""
-
-    runtime_configuration_context: RuntimeConfigurationContext
+    runtime_context: RuntimeConfigurationContext

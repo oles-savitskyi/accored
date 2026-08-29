@@ -20,28 +20,6 @@ from accore.platform.object import ObjectContext, ObjectInstance, ObjectState
 from accore.platform.runtime import CatalogRuntime
 
 
-def make_context() -> ObjectContext:
-    configuration = ActiveConfiguration(
-        identity=ConfigurationIdentity("standard"),
-        version=ConfigurationVersion(1),
-        published_metadata=MetadataRegistry().publish(),
-    )
-
-    return ObjectContext(
-        runtime_configuration_context=RuntimeConfigurationContext(
-            configuration,
-        )
-    )
-
-
-def make_instance(identity: Identifier | None = None) -> ObjectInstance:
-    return ObjectInstance(
-        identity=identity or Identifier.new(),
-        object_type=make_runtime(),
-        context=make_context(),
-    )
-
-
 def make_runtime() -> CatalogRuntime:
     definition = CatalogDefinition(
         identifier=Identifier.new(),
@@ -59,6 +37,26 @@ def make_runtime() -> CatalogRuntime:
     metadata = MetadataCompiler().compile(definition)
 
     return CatalogRuntime(metadata=metadata)
+
+
+def make_context() -> ObjectContext:
+    registry = MetadataRegistry()
+    configuration = ActiveConfiguration(
+        identity=ConfigurationIdentity("standard"),
+        version=ConfigurationVersion(1),
+        published_metadata=registry.publish(),
+    )
+    runtime_context = RuntimeConfigurationContext(configuration)
+
+    return ObjectContext(runtime_context=runtime_context)
+
+
+def make_instance(identity: Identifier | None = None) -> ObjectInstance:
+    return ObjectInstance(
+        identity=identity or Identifier.new(),
+        object_type=make_runtime(),
+        context=make_context(),
+    )
 
 
 def test_object_instance_preserves_identity() -> None:
@@ -81,19 +79,48 @@ def test_object_instance_preserves_object_type() -> None:
     assert instance.object_type is object_type
 
 
-def test_object_instance_is_created_in_created_state() -> None:
+def test_object_instance_preserves_context() -> None:
+    context = make_context()
+
+    instance = ObjectInstance(
+        identity=Identifier.new(),
+        object_type=make_runtime(),
+        context=context,
+    )
+
+    assert instance.context is context
+
+
+def test_object_instance_starts_in_created_state() -> None:
     instance = make_instance()
 
     assert instance.state is ObjectState.CREATED
 
 
-def test_object_instance_state_is_not_constructor_argument() -> None:
-    with pytest.raises(TypeError):
+def test_object_instance_cannot_select_initial_state() -> None:
+    with pytest.raises(
+        ValueError,
+        match="ObjectInstance must be created in CREATED state",
+    ):
         ObjectInstance(
             identity=Identifier.new(),
             object_type=make_runtime(),
+            context=make_context(),
             state=ObjectState.ACTIVE,
         )
+
+
+def test_object_instance_is_immutable() -> None:
+    instance = make_instance()
+
+    with pytest.raises(AttributeError):
+        instance.identity = Identifier.new()  # type: ignore[misc]
+
+    with pytest.raises(AttributeError):
+        instance.context = make_context()  # type: ignore[misc]
+
+    with pytest.raises(AttributeError):
+        instance.state = ObjectState.ACTIVE  # type: ignore[misc]
 
 
 def test_object_instances_with_same_identity_are_equal() -> None:
@@ -121,13 +148,12 @@ def test_object_instance_hash_is_based_on_identity() -> None:
     assert hash(first) == hash(second)
 
 
-def test_instance_preserves_context() -> None:
-    context = make_context()
+def test_object_instance_identity_is_independent_of_state() -> None:
+    identity = Identifier.new()
 
-    instance = ObjectInstance(
-        identity=Identifier.new(),
-        object_type=make_runtime(),
-        context=context,
-    )
+    first = make_instance(identity)
 
-    assert instance.context is context
+    # State transitions are not implemented yet. This test establishes
+    # that equality semantics are based on identity rather than state.
+    assert first.identity == identity
+    assert first.state is ObjectState.CREATED

@@ -27,19 +27,19 @@ def test_object_context_preserves_runtime_configuration_context() -> None:
     runtime_context = make_runtime_context()
 
     context = ObjectContext(
-        runtime_configuration_context=runtime_context,
+        runtime_context=runtime_context,
     )
 
-    assert context.runtime_configuration_context is runtime_context
+    assert context.runtime_context is runtime_context
 
 
 def test_object_context_is_immutable() -> None:
     context = ObjectContext(
-        runtime_configuration_context=make_runtime_context(),
+        runtime_context=make_runtime_context(),
     )
 
     with pytest.raises(AttributeError):
-        context.runtime_configuration_context = make_runtime_context()  # type: ignore[misc]
+        context.runtime_context = make_runtime_context()  # type: ignore[misc]
 
 
 def test_object_context_can_reference_different_runtime_snapshots() -> None:
@@ -58,20 +58,20 @@ def test_object_context_can_reference_different_runtime_snapshots() -> None:
     second_runtime_context = RuntimeConfigurationContext(second_configuration)
 
     first_context = ObjectContext(
-        runtime_configuration_context=first_runtime_context,
+        runtime_context=first_runtime_context,
     )
     second_context = ObjectContext(
-        runtime_configuration_context=second_runtime_context,
+        runtime_context=second_runtime_context,
     )
 
-    assert first_context.runtime_configuration_context is first_runtime_context
-    assert second_context.runtime_configuration_context is second_runtime_context
+    assert first_context.runtime_context is first_runtime_context
+    assert second_context.runtime_context is second_runtime_context
     assert first_context != second_context
 
 
 def test_object_context_does_not_define_object_identity() -> None:
     context = ObjectContext(
-        runtime_configuration_context=make_runtime_context(),
+        runtime_context=make_runtime_context(),
     )
 
     assert not hasattr(context, "identity")
