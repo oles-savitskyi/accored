@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import pytest
 
+from accore.platform.configuration import (
+    ActiveConfiguration,
+    ConfigurationIdentity,
+    ConfigurationVersion,
+    RuntimeConfigurationContext,
+)
 from accore.platform.definitions import (
     AttributeDefinition,
     AttributeType,
@@ -9,8 +15,31 @@ from accore.platform.definitions import (
 )
 from accore.platform.foundation import Identifier
 from accore.platform.metadata import MetadataCompiler
-from accore.platform.object import ObjectInstance, ObjectState
+from accore.platform.metadata.registry import MetadataRegistry
+from accore.platform.object import ObjectContext, ObjectInstance, ObjectState
 from accore.platform.runtime import CatalogRuntime
+
+
+def make_context() -> ObjectContext:
+    configuration = ActiveConfiguration(
+        identity=ConfigurationIdentity("standard"),
+        version=ConfigurationVersion(1),
+        published_metadata=MetadataRegistry().publish(),
+    )
+
+    return ObjectContext(
+        runtime_configuration_context=RuntimeConfigurationContext(
+            configuration,
+        )
+    )
+
+
+def make_instance(identity: Identifier | None = None) -> ObjectInstance:
+    return ObjectInstance(
+        identity=identity or Identifier.new(),
+        object_type=make_runtime(),
+        context=make_context(),
+    )
 
 
 def make_runtime() -> CatalogRuntime:
@@ -32,15 +61,6 @@ def make_runtime() -> CatalogRuntime:
     return CatalogRuntime(metadata=metadata)
 
 
-def make_instance(
-    identity: Identifier | None = None,
-) -> ObjectInstance:
-    return ObjectInstance(
-        identity=identity or Identifier.new(),
-        object_type=make_runtime(),
-    )
-
-
 def test_object_instance_preserves_identity() -> None:
     identity = Identifier.new()
 
@@ -55,6 +75,7 @@ def test_object_instance_preserves_object_type() -> None:
     instance = ObjectInstance(
         identity=Identifier.new(),
         object_type=object_type,
+        context=make_context(),
     )
 
     assert instance.object_type is object_type
@@ -98,3 +119,15 @@ def test_object_instance_hash_is_based_on_identity() -> None:
     second = make_instance(identity)
 
     assert hash(first) == hash(second)
+
+
+def test_instance_preserves_context() -> None:
+    context = make_context()
+
+    instance = ObjectInstance(
+        identity=Identifier.new(),
+        object_type=make_runtime(),
+        context=context,
+    )
+
+    assert instance.context is context

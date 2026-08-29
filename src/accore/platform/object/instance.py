@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from accore.platform.foundation import Identifier
+from accore.platform.object.context import ObjectContext
 from accore.platform.object.state import ObjectState
 from accore.platform.runtime.catalog import CatalogRuntime
 
@@ -13,6 +14,7 @@ class ObjectInstance:
 
     identity: Identifier
     object_type: CatalogRuntime
+    context: ObjectContext
     state: ObjectState = field(
         default=ObjectState.CREATED,
         init=False,
