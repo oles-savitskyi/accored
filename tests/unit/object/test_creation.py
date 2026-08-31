@@ -15,10 +15,10 @@ from accore.platform.foundation import Identifier
 from accore.platform.metadata import MetadataCompiler
 from accore.platform.metadata.registry import MetadataRegistry
 from accore.platform.object import ObjectContext, ObjectCreator, ObjectInstance, ObjectState
-from accore.platform.runtime import CatalogRuntime
+from accore.platform.runtime import CatalogRuntime, RuntimeObjectType
 
 
-def make_runtime() -> CatalogRuntime:
+def make_runtime() -> RuntimeObjectType:
     definition = CatalogDefinition(
         identifier=Identifier.new(),
         name="Assortment",

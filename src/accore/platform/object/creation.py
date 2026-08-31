@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from accore.platform.foundation import Identifier
-from accore.platform.runtime import CatalogRuntime
+from accore.platform.runtime import RuntimeObjectType
 
 from .context import ObjectContext
 from .instance import ObjectInstance
@@ -16,7 +16,7 @@ class ObjectCreator:
 
     @staticmethod
     def create(
-        object_type: CatalogRuntime,
+        object_type: RuntimeObjectType,
         context: ObjectContext,
     ) -> ObjectInstance:
         """Create a new object instance in the CREATED state."""

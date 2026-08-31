@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from accore.platform.foundation import Identifier
-from accore.platform.runtime import CatalogRuntime
+from accore.platform.runtime import RuntimeObjectType
 
 from .context import ObjectContext
 from .state import ObjectState
@@ -14,7 +14,7 @@ class ObjectInstance:
     """Immutable runtime representation of one business object."""
 
     identity: Identifier
-    object_type: CatalogRuntime
+    object_type: RuntimeObjectType
     context: ObjectContext
     state: ObjectState = ObjectState.CREATED
 
