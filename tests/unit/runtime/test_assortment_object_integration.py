@@ -149,10 +149,8 @@ def test_assortment_object_instance_uses_explicit_runtime_context() -> None:
     )
 
     assert instance.context.runtime_context is context
-    assert instance.context.runtime_context.configuration.identity == ConfigurationIdentity(
-        "standard"
-    )
-    assert instance.context.runtime_context.configuration.version == ConfigurationVersion(1)
+    assert instance.context.runtime_context.identity == ConfigurationIdentity("standard")
+    assert instance.context.runtime_context.version == ConfigurationVersion(1)
 
 
 def test_assortment_object_instance_lifecycle_is_generic() -> None:

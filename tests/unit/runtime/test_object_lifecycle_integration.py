@@ -120,10 +120,8 @@ def test_object_context_preserves_runtime_configuration_context() -> None:
     instance, context = make_object_instance()
 
     assert instance.context.runtime_context is context
-    assert instance.context.runtime_context.configuration.identity == (
-        ConfigurationIdentity("standard")
-    )
-    assert instance.context.runtime_context.configuration.version == (ConfigurationVersion(1))
+    assert instance.context.runtime_context.identity == ConfigurationIdentity("standard")
+    assert instance.context.runtime_context.version == ConfigurationVersion(1)
 
 
 def test_lifecycle_does_not_allow_invalid_transition_from_created_to_disposed() -> None:

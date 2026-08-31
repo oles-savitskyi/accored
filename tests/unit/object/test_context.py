@@ -76,3 +76,14 @@ def test_object_context_does_not_define_object_identity() -> None:
 
     assert not hasattr(context, "identity")
     assert Identifier.new() != Identifier.new()
+
+
+def test_object_context_exposes_configuration_snapshot_properties() -> None:
+    runtime_context = make_runtime_context()
+
+    context = ObjectContext(
+        runtime_context=runtime_context,
+    )
+
+    assert context.runtime_context.identity == ConfigurationIdentity("standard")
+    assert context.runtime_context.version == ConfigurationVersion(1)
