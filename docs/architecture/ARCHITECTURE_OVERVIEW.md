@@ -229,25 +229,43 @@ Responsibilities:
 * execution context;
 * runtime services.
 
+RuntimeResolver resolves Runtime Object Types; it does not create or own ObjectInstance objects.
+
 ---
 
 ## 3. Object Architecture
 
-Provides business object model.
+Provides the generic Object Runtime model for individual business objects.
 
 Responsibilities:
 
-* catalogs;
-* documents;
-* business objects;
-* object lifecycle;
-* object services.
+* Object Instance;
+* Object Identity;
+* Object Context;
+* Object State;
+* Object Lifecycle;
+* Object creation boundary.
+
+Runtime Object Type resolution remains the responsibility of Runtime Architecture.
+
+The Object Architecture does not own:
+
+* metadata resolution;
+* configuration activation;
+* configuration publication;
+* physical persistence;
+* global object registration.
+
+The Object Runtime is generic and is consumed by business object types such as
+Catalog and Document objects.
 
 ---
 
 ## 4. Storage Architecture
 
 Provides persistent data storage.
+
+Storage is outside the Object Runtime boundary. A Runtime Object Instance does not require physical persistence merely to exist.
 
 Responsibilities:
 
@@ -461,7 +479,7 @@ External Connector
 
 ## 10. Security Architecture
 
-## 11. Workflow Architecture 
+## 11. Workflow Architecture
 
 ## 12. Configuration Architecture
 

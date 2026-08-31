@@ -1,352 +1,465 @@
 # Object State
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Architecture Specification
+**Phase:** 4 — Object Runtime
+**Architecture Baseline:** `architecture-core-3.0`
 
 ---
 
 # 1. Purpose
 
-The Object State architecture defines the mutable state associated with Domain Objects during their lifetime.
+This document defines the Object State model of AcCoreD.
 
-It separates business information from runtime infrastructure and persistence concerns, providing a clear architectural model for object execution, storage and change management.
+Object State describes the current runtime state of an individual
+`ObjectInstance`.
 
-Object State is independent of Object Identity.
+Object State belongs to the Object Runtime and is independent from physical
+persistence.
 
----
-
-# 2. Design Goals
-
-The Object State architecture is designed to provide:
-
-- explicit separation of mutable and immutable object properties;
-- clear distinction between business and infrastructure concerns;
-- deterministic state transitions;
-- implementation independence;
-- compatibility with Runtime, Storage and Transactions;
-- extensibility for future state models.
+The purpose of this model is to provide the minimum generic state semantics
+required for Object Runtime lifecycle management without introducing a
+generalized state machine, persistence state model, or workflow engine.
 
 ---
 
-# 3. Architectural Principles
+# 2. Scope
 
-## Identity and State are independent
+This document defines:
 
-Object Identity uniquely identifies a Domain Object.
+- Object State;
+- the state values used by Object Runtime;
+- initial state semantics;
+- the relationship between Object State and Object Identity;
+- the relationship between Object State and Object Lifecycle;
+- the separation between runtime state and persistent state.
 
-Object State represents the mutable information associated with that object.
+This document does not define:
 
-State changes never modify Object Identity.
-
----
-
-## Business State is independent of Runtime
-
-Business information belongs to the Domain Object.
-
-Runtime infrastructure must not become part of the business model.
-
----
-
-## Runtime State is transient
-
-Runtime State exists only while the Runtime Object participates in execution.
-
-Runtime State is not part of the business domain.
+- persistence state;
+- database state;
+- dirty tracking;
+- Unit of Work;
+- transactions;
+- optimistic locking;
+- generalized state machines;
+- workflow state;
+- business-specific state models.
 
 ---
 
-## Persistence is independent
+# 3. Architectural Position
 
-Persistence stores business information without defining Runtime behavior.
+Object State belongs to the individual Object Instance.
 
-Storage mechanisms do not own Object State.
+The relationship is:
 
----
+```text
+Runtime Object Type
+        ↓
+Object Instance
+        ↓
+Object State
 
-## State evolves
+Object State does not belong to:
 
-Object State changes throughout the lifetime of a Runtime Object.
+Metadata;
+Metadata Identity;
+Runtime Object Type;
+Configuration;
+RuntimeConfigurationContext;
+Storage.
 
-State evolution is deterministic and governed by business behavior.
+The Object Runtime therefore owns runtime object state semantics without
+owning physical persistence.
 
----
+4. Object State Model
 
-# 4. Architectural State Model
+The initial generic Object Runtime state model contains three states:
+
+CREATED
+ACTIVE
+DISPOSED
+
+These states represent the runtime lifecycle condition of an individual
+Object Instance.
+
+They do not represent business-specific object states.
+
+For example, a future Assortment object may have business concepts such as
+"available", "blocked", or "discontinued". Such concepts are not part of the
+generic Object State model.
+
+5. State Definitions
+5.1 CREATED
+
+CREATED indicates that an Object Instance has been created by the Object
+Creation Boundary but has not yet entered the active runtime state.
+
+Every newly created Object Instance enters CREATED.
+
+The initial state is established by the Object Runtime itself.
+
+Callers cannot select an alternative initial state during object
+construction.
+
+5.2 ACTIVE
+
+ACTIVE indicates that the Object Instance has entered the active runtime
+state and may participate in normal runtime object operations permitted by
+its contract.
+
+Transition into ACTIVE is an explicit Object Lifecycle operation.
+
+Object activation is not Configuration Activation.
+
+In particular:
+
+Object Lifecycle Activation
+        ≠
+Configuration Activation
+
+Activating an Object Instance must not modify the active runtime
+configuration.
+
+5.3 DISPOSED
+
+DISPOSED indicates that the Object Instance has left normal runtime use.
+
+A disposed Object Instance must not be used for normal runtime operations.
+
+Disposal is an Object Lifecycle concern.
+
+It does not imply:
+
+deletion from Storage;
+database deletion;
+archival;
+cancellation of a business object;
+deactivation of configuration.
+
+Those meanings belong to other architectural layers.
+
+6. Initial State
+
+Object creation always establishes:
+
+ObjectInstance
+      ↓
+ObjectState.CREATED
+
+The constructor of ObjectInstance must not expose an argument allowing the
+caller to choose the initial state.
+
+This prevents callers from bypassing the Object Runtime lifecycle boundary.
+
+The initial state is therefore a runtime invariant.
+
+7. Object State and Object Identity
+
+Object Identity and Object State are independent concepts.
+
+Object Identity
+      ≠
+Object State
+
+Object Identity identifies the individual Object Instance.
+
+Object State describes its current runtime condition.
+
+The existing immutable foundation.Identifier is used as the technical
+representation of Object Identity.
+
+Therefore:
+
+Identifier
+    ↓
+Object Instance Identity
+
+ObjectState
+    ↓
+Object Instance Runtime State
+
+Changing Object State must not change Object Identity.
+
+8. Object State Ownership
+
+Each Object Instance owns its runtime state.
+
+Two Object Instances must not implicitly share one mutable Object State.
+
+For example:
+
+Object Instance A
+    ├── Identity A
+    └── State A
+
+Object Instance B
+    ├── Identity B
+    └── State B
+
+Even when both instances have the same Runtime Object Type, their runtime
+state is independent.
+
+9. Object State and Equality
+
+Object Instance equality is based on Object Identity.
+
+It is not based on Object State.
+
+Therefore, two Object Instance representations carrying the same Object
+Identity remain equal even if their runtime state differs.
 
 Conceptually:
 
-```
-                 Domain Object
+Identity A == Identity B
+        ↓
+ObjectInstance A == ObjectInstance B
 
-                       │
+regardless of:
 
-        ┌──────────────┴──────────────┐
+State A != State B
 
-        ▼                             ▼
+Object State must therefore never become part of Object Identity semantics.
 
- Object Identity               Object State
+10. Object State and Lifecycle
 
-                                      │
+Object State provides the state representation used by Object Lifecycle.
 
-                  ┌───────────────────┼───────────────────┐
+The intended lifecycle is:
 
-                  ▼                   ▼                   ▼
+CREATE
+  ↓
+CREATED
+  ↓
+ACTIVE
+  ↓
+DISPOSED
 
-          Business State       Runtime State      Persistence State
-```
+State values describe the lifecycle condition.
 
-Each state model represents a separate architectural concern.
+Lifecycle operations own the rules governing transitions between those
+states.
 
----
+Object State itself is not a generalized transition engine.
 
-# 5. Business State
+The separation is:
 
-Business State contains the mutable business information of a Domain Object.
+Object State
+    ↓
+represents current state
 
-Typical examples include:
+Object Lifecycle
+    ↓
+controls legal transitions
+11. Object State and Persistence
 
-- business attributes;
-- document contents;
-- catalog properties;
-- register values;
-- business status.
+Object State is a runtime concept.
 
-Business State represents the business meaning of the object.
+It must not be interpreted as persistent state.
 
-Business State is independent of Runtime implementation.
+The distinction is:
 
----
+Object State
+    ≠
+Persistent State
 
-# 6. Runtime State
+An Object Instance may exist in runtime state without any physical
+persistence having occurred.
 
-Runtime State contains transient execution information.
+For example:
 
-Examples include:
+Create Object Instance
+        ↓
+State = CREATED
+        ↓
+No Storage access required
 
-- initialization status;
-- execution context;
-- temporary caches;
-- runtime flags;
-- service bindings;
-- execution diagnostics.
+Object Runtime therefore does not require Storage merely to establish or
+maintain the basic runtime state of an Object Instance.
 
-Runtime State exists only during execution.
+12. Object State and Storage Boundary
 
-Runtime State is never considered part of the business model.
+The Object Runtime must not introduce a direct dependency from Object State
+to Storage.
 
----
+In particular, Object State must not:
 
-# 7. Persistence State
+read from Storage;
+write to Storage;
+manage persistence transactions;
+determine database persistence status;
+perform synchronization with a repository.
 
-Persistence State describes the storage representation of Business State.
+Future persistence architecture may define how runtime state is represented
+persistently, but that mapping is outside the scope of this document.
 
-Examples include:
+13. Object State and Configuration Lifecycle
 
-- persistence status;
-- storage version;
-- synchronization metadata;
-- storage mapping information.
+Object State is independent from Configuration Lifecycle.
 
-Persistence State belongs to the Storage subsystem.
+The distinction is:
 
-It does not define business behavior.
+Configuration Lifecycle
+        ≠
+Object Lifecycle
 
----
+and:
 
-# 8. State Ownership
+Configuration State
+        ≠
+Object State
 
-Each state model has a single architectural owner.
+Creating, activating, or disposing an Object Instance must not activate,
+deactivate, or otherwise mutate the runtime configuration.
 
-| State Model | Owner |
-|-------------|-------|
-| Business State | Domain Object |
-| Runtime State | Runtime |
-| Persistence State | Storage |
+Likewise, changing the active configuration must not silently mutate the
+state of an already existing Object Instance.
 
-Responsibilities shall not overlap.
+14. Object State and Runtime Context
 
----
+Object State operates within an explicit Object Context.
 
-# 9. State Evolution
+The context is associated with the RuntimeConfigurationContext snapshot
+under which the Object Instance exists.
 
-Business State evolves through business behavior.
+The relationship is:
 
-Runtime State evolves through Runtime execution.
+RuntimeConfigurationContext
+        ↓
+Object Context
+        ↓
+Object Instance
+        ↓
+Object State
 
-Persistence State evolves through Storage operations.
+Object State itself does not resolve configuration and does not access
+configuration binding.
 
-Each evolution process is independent.
+15. State Transition Responsibility
 
----
+State transitions are owned by the Object Lifecycle boundary.
 
-# 10. State Transitions
+The Object State model does not provide generalized transition orchestration.
 
-Conceptually:
+The lifecycle boundary is responsible for:
 
-```
-Business Behavior
+validating transitions;
+rejecting illegal transitions;
+protecting disposed objects;
+maintaining deterministic lifecycle semantics.
 
-        │
+This separation prevents Object State from becoming a generalized workflow or
+state-machine subsystem.
 
-        ▼
+16. Explicit Non-Goals
 
-Business State
+The Object State model does not implement:
 
-        │
+generalized state machines;
+business state machines;
+workflow state;
+dirty tracking;
+persistence state tracking;
+Unit of Work;
+repository state;
+transaction state;
+optimistic locking;
+concurrency state;
+version state.
 
-        ▼
+These capabilities may be introduced by later architectural layers when
+required.
 
-Runtime Processing
+17. Architectural Invariants
 
-        │
+The following invariants apply:
 
-        ▼
+I1. Every Object Instance has exactly one runtime Object State.
 
-Persistence
-```
+I2. Every newly created Object Instance starts in CREATED.
 
-No subsystem directly modifies another subsystem's state model.
+I3. The initial state cannot be selected by the Object Instance caller.
 
----
+I4. Object State is independent from Object Identity.
 
-# 11. Relationship to Runtime
+I5. Object State is independent from Metadata Identity.
 
-The Runtime owns Runtime State.
+I6. Object State is independent from Runtime Object Type identity.
 
-Runtime execution consumes Business State and produces updated Business State while maintaining Runtime State internally.
+I7. Object State is independent from persistent state.
 
-The Runtime does not redefine Business State.
+I8. Object State has no direct Storage dependency.
 
----
+I9. Object Lifecycle owns state transitions.
 
-# 12. Relationship to Storage
+I10. Object Lifecycle is independent from Configuration Lifecycle.
 
-Storage persists Business State.
+I11. Object Instances of the same Runtime Object Type maintain independent
+runtime state.
 
-Storage may maintain Persistence State but never replaces Business State.
+I12. Object State does not participate in Object Instance equality.
 
-Persistence mechanisms remain transparent to Domain Objects.
+18. Relationship to Object Runtime
 
----
+The resulting Object Runtime model is:
 
-# 13. Relationship to Transactions
+RuntimeConfigurationContext
+        ↓
+Object Context
+        ↓
+Runtime Object Type
+        ↓
+Object Creation Boundary
+        ↓
+Object Instance
+    ├── Object Identity
+    ├── Object Type
+    ├── Object State
+    └── Object Context
+        ↓
+Object Lifecycle
 
-Transactions coordinate modifications of Business State.
+Storage remains outside this boundary.
 
-Transaction processing does not own Business State.
+Object Runtime
+      ↓
+Future Persistence Boundary
+      ↓
+Storage
+19. Implementation Correspondence
 
-Transaction metadata belongs to the Transactions subsystem.
+The current implementation represents Object State as the generic
+ObjectState abstraction used by ObjectInstance.
 
----
+The initial values are:
 
-# 14. Relationship to Events
+CREATED
+ACTIVE
+DISPOSED
 
-Events describe changes to Business State.
+ObjectInstance establishes CREATED during construction.
 
-Runtime State changes are implementation details unless explicitly published.
+Lifecycle operations are implemented separately from the state declaration.
 
-Event generation remains independent of persistence.
+The implementation must preserve the architectural separation defined in
+this document.
 
----
+20. Conclusion
 
-# 15. Architectural Boundaries
+Object State provides the minimal runtime state model required by AcCoreD
+Object Runtime.
 
-The Object State architecture separates:
+It identifies the runtime condition of an individual Object Instance without
+becoming a persistence model, workflow engine, or generalized state machine.
 
-- object identity;
-- business information;
-- runtime infrastructure;
-- persistence representation;
-- transaction metadata.
+The canonical distinction is:
 
-Each concern belongs to exactly one architectural subsystem.
+Object Identity
+      ≠
+Object State
+      ≠
+Persistent State
 
----
-
-# 16. Extensibility
-
-Future platform versions may introduce additional specialized state models without modifying the architectural foundation.
-
-Examples include:
-
-- Replication State;
-- Synchronization State;
-- Audit State;
-- Version State.
-
-Each additional model shall preserve the separation of architectural responsibilities.
-
----
-
-# 17. Relationship to Other Subsystems
-
-Object State connects multiple architectural subsystems while preserving their independence.
-
-```
-                Domain Object
-
-                      │
-
-                      ▼
-
-                Object State
-
-      ┌───────────────┼───────────────┐
-
-      ▼               ▼               ▼
-
- Runtime          Storage      Transactions
-
-      │               │               │
-
-      └───────────────┼───────────────┘
-
-                      ▼
-
-                    Events
-```
-
-Every subsystem interacts with Object State through explicit architectural contracts.
-
----
-
-# Appendix A. State Architecture
-
-```
-                 Domain Object
-
-                        │
-
-        ┌───────────────┴───────────────┐
-
-        ▼                               ▼
-
-Object Identity                 Object State
-
-                                        │
-
-             ┌──────────────────────────┼──────────────────────────┐
-
-             ▼                          ▼                          ▼
-
-      Business State            Runtime State            Persistence State
-
-             │                          │                          │
-
-      Business Logic              Runtime Engine          Storage Engine
-```
-
-The architecture separates business concerns from infrastructure concerns while preserving a unified object model.
-
----
-
-# Appendix B. State Responsibilities
-
-| State Model | Responsibility |
-|-------------|----------------|
-| Business State | Mutable business information |
-| Runtime State | Transient execution information |
-| Persistence State | Storage representation metadata |
-
-Object State provides a unified architectural model while preserving clear separation between business execution, runtime infrastructure and persistence.
+Object State is therefore a local runtime concern owned by Object Runtime and
+controlled through the Object Lifecycle boundary.

@@ -1,8 +1,8 @@
 # ADR-P4-01 — Object Instance Model
 
-**Status:** Accepted  
-**Date:** 2026-08-27  
-**Phase:** 4 — Object Runtime  
+**Status:** Accepted
+**Date:** 2026-08-27
+**Phase:** 4 — Object Runtime
 **Decision Type:** Architectural
 
 ---
@@ -209,9 +209,9 @@ Rejected because it violates the Generic Runtime principle.
 
 # ADR-P4-02 — Object Identity
 
-**Status:** Accepted  
-**Date:** 2026-08-27  
-**Phase:** 4 — Object Runtime  
+**Status:** Accepted
+**Date:** 2026-08-27
+**Phase:** 4 — Object Runtime
 **Decision Type:** Architectural
 
 ---
@@ -382,9 +382,9 @@ they do not replace Object Identity.
 
 # ADR-P4-03 — Runtime Type Resolution vs Object Creation
 
-**Status:** Accepted  
-**Date:** 2026-08-27  
-**Phase:** 4 — Object Runtime  
+**Status:** Accepted
+**Date:** 2026-08-27
+**Phase:** 4 — Object Runtime
 **Decision Type:** Architectural
 
 ---
@@ -436,6 +436,43 @@ The conceptual flow is:
 `RuntimeResolver` owns type resolution.
 
 The Object Runtime creation boundary owns object instance creation.
+
+### Runtime Boundary Contract
+
+The dependency from Object Runtime to the Runtime subsystem is expressed
+through the `RuntimeObjectType` architectural contract.
+
+`RuntimeResolver` is responsible for producing resolved Runtime Object Types.
+Object Runtime consumes the resulting `RuntimeObjectType` without depending on
+the concrete implementation that produced it.
+
+For example, `CatalogRuntime` is a concrete Runtime Object Type implementation,
+but it is not a dependency of the generic Object Runtime.
+
+Therefore:
+
+```text
+RuntimeResolver
+      │
+      ▼
+RuntimeObjectType
+      │
+      ▼
+Object Runtime
+```
+rather than:
+```text
+RuntimeResolver
+      │
+      ▼
+CatalogRuntime
+      │
+      ▼
+Object Runtime
+```
+This preserves the generic Object Runtime boundary and allows additional
+Runtime Object Type implementations to be introduced without modifying the
+Object Runtime.
 
 ---
 
@@ -575,7 +612,8 @@ Rejected because persistence must remain downstream from Object Runtime.
 5. Object creation uses explicit runtime context.
 6. No generalized global factory framework is required unless future
    requirements justify it.
-
+7. Object Runtime depends on the `RuntimeObjectType` contract and not on a
+   concrete Runtime Object Type implementation.
 ---
 
 ## Related Decisions
@@ -587,9 +625,9 @@ Rejected because persistence must remain downstream from Object Runtime.
 
 # ADR-P4-04 — Object Lifecycle
 
-**Status:** Accepted  
-**Date:** 2026-08-27  
-**Phase:** 4 — Object Runtime  
+**Status:** Accepted
+**Date:** 2026-08-27
+**Phase:** 4 — Object Runtime
 **Decision Type:** Architectural
 
 ---
@@ -766,9 +804,9 @@ lifecycle.
 
 # ADR-P4-05 — Object Context
 
-**Status:** Accepted  
-**Date:** 2026-08-27  
-**Phase:** 4 — Object Runtime  
+**Status:** Accepted
+**Date:** 2026-08-27
+**Phase:** 4 — Object Runtime
 **Decision Type:** Architectural
 
 ---
@@ -922,9 +960,9 @@ Rejected because it would introduce hidden dependencies.
 
 # ADR-P4-06 — Object State & Storage Boundary
 
-**Status:** Accepted  
-**Date:** 2026-08-27  
-**Phase:** 4 — Object Runtime  
+**Status:** Accepted
+**Date:** 2026-08-27
+**Phase:** 4 — Object Runtime
 **Decision Type:** Architectural
 
 ---
@@ -1088,3 +1126,15 @@ Rejected because the Object Runtime must remain storage-independent.
 - ADR-P4-04 — Object Lifecycle
 - Storage Architecture
 
+---
+
+# Phase 4 Implementation Alignment
+
+The accepted ADRs are aligned with the implemented boundaries as follows:
+
+- `RuntimeResolver` resolves Runtime Object Types and does not create instances.
+- `ObjectCreator` creates `ObjectInstance` values from a resolved `CatalogRuntime` and explicit `ObjectContext`.
+- Object Identity uses the existing immutable ULID-backed `Identifier`.
+- Object Lifecycle is `CREATED → ACTIVE → DISPOSED` and is independent of Configuration Lifecycle.
+- Object Context preserves the explicit Phase 3 configuration snapshot.
+- Object Registry and persistence remain deferred from the current Object Runtime implementation.

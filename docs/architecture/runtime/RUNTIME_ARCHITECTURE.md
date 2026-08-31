@@ -1,7 +1,7 @@
 # Runtime Architecture
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Accepted / Implemented in progress
 
 ---
 
@@ -64,7 +64,7 @@ It consumes the Published Semantic Metadata Graph produced by the Metadata Compi
 
 ## Runtime is context-aware
 
-Every operation executes within an explicit Runtime Context.
+Configuration-dependent Runtime operations use an explicit `RuntimeConfigurationContext`. Object Runtime derives an explicit `ObjectContext` from that snapshot.
 
 The execution context defines the environment in which platform services operate.
 
@@ -91,22 +91,35 @@ Extensions integrate through service registration rather than Runtime modificati
 The Runtime architecture consists of several conceptual layers.
 
 ```
-Published Semantic Metadata Graph
-                │
-                ▼
-         Runtime Environment
-                │
-        Runtime Context
-                │
-                ▼
-        Service Registry
-                │
-                ▼
-        Runtime Services
-                │
-                ▼
-         Domain Objects
+ActiveConfiguration
+        │
+        │ publish
+        ▼
+RuntimeConfigurationBinding
+        │
+        │ acquire
+        ▼
+RuntimeConfigurationContext
+        │
+        ▼
+MetadataResolver
+        │
+        ▼
+RuntimeResolver
+        │
+        ▼
+Runtime Object Type
+        │
+        ▼
+Object Runtime
 ```
+
+`RuntimeConfigurationBinding` owns publication of the active runtime
+configuration. `RuntimeConfigurationContext` captures an immutable snapshot
+of that published configuration.
+
+Runtime components consume configuration through the explicit context and do
+not discover the current configuration through the binding themselves.
 
 Each layer has a distinct architectural responsibility.
 
@@ -305,3 +318,9 @@ Runtime Context defines the execution conditions.
 Domain Objects implement the business application.
 
 Together these components form the execution architecture of the AcCore platform.
+
+---
+
+## Phase 4 Runtime/Object Boundary
+
+The Runtime package remains responsible for Runtime Object Type resolution. The Object package owns individual Object Instance semantics. `RuntimeResolver` does not create Object Instances.

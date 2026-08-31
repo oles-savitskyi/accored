@@ -1,7 +1,7 @@
 # Object Architecture
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Accepted / Implemented in progress
 
 ---
 
@@ -47,11 +47,15 @@ Metadata does not contain executable object instances.
 
 ---
 
-## Runtime executes object instances
+## Runtime resolves object types and executes object instances
 
-Runtime Objects represent executable instances of Domain Objects.
+Runtime resolves executable Runtime Object Types from Metadata and explicit
+RuntimeConfigurationContext.
 
-Runtime Objects exist only within the Runtime Environment.
+Object Instances are created from already resolved Runtime Object Types and
+operate within an explicit Object Context.
+
+Runtime Object Type and Object Instance are distinct concepts.
 
 ---
 
@@ -93,30 +97,18 @@ Conceptually:
 
 ```
 Metadata Object
-
-        │
-
-     defines
-
-        ▼
-
-Domain Object
-
-        │
-
- instantiated as
-
-        ▼
-
-Runtime Object
-
-        │
-
- mapped to
-
-        ▼
-
-Persistent Object
+      │
+      │ defines
+      ▼
+Runtime Object Type
+      │
+      │ creates
+      ▼
+Object Instance
+      │
+      │ future persistence boundary
+      ▼
+Persistent Representation
 ```
 
 Each representation serves a distinct architectural responsibility.
@@ -156,14 +148,24 @@ Metadata does not contain executable object instances.
 
 # 7. Runtime Relationship
 
-The Runtime creates Runtime Objects from Metadata definitions.
+The Runtime resolves Runtime Object Types from Metadata and Runtime
+Configuration.
 
-Runtime Objects:
+A Runtime Object Type represents the executable runtime semantics of a
+metadata-defined object type.
 
-- maintain Object State;
-- execute business behavior;
-- consume Runtime Services;
-- participate in Runtime Contexts.
+An Object Instance represents one individual runtime object of that type.
+
+Therefore:
+
+    Runtime Object Type
+            ↓
+      Object Instance
+
+The Runtime is responsible for runtime type resolution and runtime-level
+infrastructure.
+
+The Object Runtime owns individual Object Instance semantics.
 
 ---
 

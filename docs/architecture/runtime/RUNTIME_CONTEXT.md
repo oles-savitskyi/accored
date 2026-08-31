@@ -1,7 +1,7 @@
 # Runtime Context
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Accepted / Implemented in progress
 
 ---
 
@@ -33,7 +33,7 @@ The Runtime Context is designed to provide:
 
 ## Every operation has a Runtime Context
 
-No Runtime operation executes outside a Runtime Context.
+No configuration-dependent Runtime operation executes without an explicit `RuntimeConfigurationContext`.
 
 The Runtime Context accompanies every operation throughout its execution.
 
@@ -41,7 +41,7 @@ The Runtime Context accompanies every operation throughout its execution.
 
 ## Runtime Context is immutable
 
-A Runtime Context represents a published execution environment.
+A `RuntimeConfigurationContext` represents a published configuration snapshot for runtime consumption.
 
 After creation it is never modified.
 
@@ -55,13 +55,26 @@ Platform services receive the Runtime Context explicitly.
 
 Services do not rely on hidden global state.
 
+Configuration-dependent execution receives `RuntimeConfigurationContext`
+explicitly.
+
+Object Runtime receives its `ObjectContext` explicitly.
+
+Neither context is acquired through global configuration discovery.
+
 ---
 
 ## Runtime Context is composable
 
-A Runtime Context is composed from multiple independent context components.
+The Phase 3 `RuntimeConfigurationContext` is intentionally narrow and
+represents the immutable configuration snapshot used by runtime resolution.
 
-Each component represents a single architectural concern.
+Phase 4 introduces `ObjectContext` as the explicit execution context of an
+individual Object Instance. `ObjectContext` contains or references the
+relevant `RuntimeConfigurationContext`; it does not replace it or introduce
+a second configuration lifecycle.
+
+Each context abstraction represents a distinct architectural concern.
 
 ---
 
@@ -74,6 +87,17 @@ Derived contexts inherit execution state unless explicitly overridden.
 ---
 
 # 4. Runtime Context Model
+
+The following model describes the broader Runtime execution environment.
+It is a conceptual model rather than the concrete structure of
+`RuntimeConfigurationContext`.
+
+`RuntimeConfigurationContext` intentionally represents only the configuration
+snapshot required by configuration-dependent runtime operations.
+
+Additional execution concerns such as security, session, transaction and
+localization may be introduced through higher-level runtime contexts without
+changing the configuration snapshot contract.
 
 Conceptually:
 
@@ -409,3 +433,19 @@ Disposal
 ```
 
 A Runtime Context is composed before execution, remains immutable during execution and is disposed after its execution scope completes.
+
+---
+
+## Phase 4 Context Relationship
+
+```text
+ActiveConfiguration
+        ↓
+RuntimeConfigurationContext
+        ↓
+ObjectContext
+        ↓
+ObjectInstance
+```
+
+An existing Object Context retains its original configuration snapshot when the active binding later changes.

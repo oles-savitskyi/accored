@@ -1,371 +1,678 @@
 # Object Model
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Architecture Specification
+**Phase:** 4 — Object Runtime
+**Architecture Baseline:** `architecture-core-3.0`
 
 ---
 
 # 1. Purpose
 
-The Object Model defines the internal architectural structure of Domain Objects within the AcCore platform.
+This document defines the canonical Object Runtime model of AcCoreD.
 
-It establishes the common architectural composition shared by all object categories, independently of their business purpose or implementation technology.
+The Object Model establishes the distinction between:
 
-The Object Model serves as the foundation for Runtime execution, persistence, querying and business behavior.
+- Metadata;
+- Metadata Identity;
+- Runtime Object Type;
+- Object Instance;
+- Object Identity;
+- Object State;
+- Object Context;
+- Object Lifecycle;
+- Persistent Representation.
 
----
-
-# 2. Design Goals
-
-The Object Model is designed to provide:
-
-- a unified representation of Domain Objects;
-- explicit separation of architectural responsibilities;
-- deterministic behavior;
-- implementation independence;
-- extensibility;
-- compatibility across all object categories.
+The purpose is to provide one generic model for individual runtime business
+objects without coupling Object Runtime to physical persistence.
 
 ---
 
-# 3. Architectural Principles
+# 2. Architectural Position
 
-## Domain Objects are architectural compositions
+The Object Model is positioned between runtime type resolution and future
+persistence.
 
-A Domain Object is composed of multiple independent architectural components.
+The canonical flow is:
 
-Each component has a single responsibility.
+```text
+Configuration
+      ↓
+RuntimeConfigurationContext
+      ↓
+MetadataResolver
+      ↓
+RuntimeResolver
+      ↓
+Runtime Object Type
+      ↓
+Object Creation Boundary
+      ↓
+Object Instance
+      ↓
+Future Persistence Boundary
+      ↓
+Storage
 
----
+Object Runtime owns the individual runtime object.
 
-## Identity is independent from state
+It does not own:
 
-Object Identity uniquely identifies the object.
+configuration activation;
+metadata compilation;
+metadata resolution;
+physical persistence;
+global object registration.
+3. Core Distinctions
 
-Object State represents mutable business information.
+The Object Model requires the following distinctions to remain explicit.
 
-Identity never changes as a consequence of state modifications.
+3.1 Metadata Identity vs Object Identity
+Metadata Identity
+      ≠
+Object Identity
 
----
+Metadata Identity identifies a metadata-defined type or definition.
 
-## Behavior is independent from storage
+Object Identity identifies one individual runtime Object Instance.
 
-Business behavior belongs to Runtime Objects.
+A metadata-defined type may therefore produce multiple objects:
 
-Persistence concerns belong to the Storage subsystem.
+Metadata Identity
+      ↓
+Runtime Object Type
+      ↓
+Object Instance A
+      ↓
+Object Instance B
+      ↓
+Object Instance C
 
----
+The identity of the metadata definition must never be used as the identity
+of an individual object instance.
 
-## Metadata defines object structure
+3.2 Runtime Object Type vs Object Instance
+Runtime Object Type
+      ≠
+Object Instance
 
-Metadata specifies the structure and capabilities of Domain Objects.
+A Runtime Object Type represents executable runtime semantics associated with
+a resolved metadata-defined type.
 
-Metadata does not define object instances.
+An Object Instance represents one individual runtime entity of that type.
 
----
+Therefore:
 
-## Runtime executes object behavior
+CatalogRuntime
+      ↓
+ObjectInstance A
+ObjectInstance B
+ObjectInstance C
 
-Runtime Objects execute business behavior within a Runtime Context.
+is valid.
 
----
+3.3 Object State vs Persistent State
+Object State
+      ≠
+Persistent State
 
-## Components collaborate through contracts
+Object State belongs to the runtime object.
 
-Object components interact through explicit architectural contracts.
+Persistent State belongs to the future persistence architecture.
 
-Internal implementation details remain encapsulated.
+An Object Instance can exist in runtime state without requiring Storage.
 
----
+3.4 Object Lifecycle vs Configuration Lifecycle
+Object Lifecycle
+      ≠
+Configuration Lifecycle
 
-# 4. Domain Object Model
+Object lifecycle operations affect individual Object Instances.
+
+Configuration lifecycle operations affect runtime configuration snapshots.
+
+Object lifecycle operations must not activate, deactivate, or otherwise
+mutate configuration.
+
+4. Object Instance
+
+ObjectInstance is the canonical runtime representation of one individual
+business object.
 
 Conceptually:
 
-```
-                  Domain Object
+ObjectInstance
+    ├── Object Identity
+    ├── Object Type
+    ├── Object State
+    └── Object Context
 
-                         │
+Object Lifecycle operates on the Object Instance but is a separate
+responsibility.
 
-     ┌───────────────────┼───────────────────┐
+The Object Instance does not itself become a persistence object.
 
-     ▼                   ▼                   ▼
+5. Object Identity
 
- Identity             Structure          Behavior
+Object Identity uniquely identifies an individual Object Instance.
 
-     │                   │                   │
+AcCoreD reuses the existing immutable ULID-backed foundation.Identifier as
+the technical representation of Object Identity.
 
-     ▼                   ▼                   ▼
+No separate ObjectIdentity value type is required.
 
- State             Relationships      Runtime Services
-```
+Architecturally:
 
-Each component represents a separate architectural concern.
+Identifier
+      ↓
+Object Identity
+      ↓
+Object Instance
 
----
+This reuse does not collapse Object Identity into Metadata Identity.
 
-# 5. Object Identity
-
-Every Domain Object possesses exactly one immutable Object Identity.
+The same technical primitive may be used for different architectural
+identity concepts while their semantics remain distinct.
 
 Object Identity:
 
-- uniquely identifies the object;
-- survives state modifications;
-- remains stable throughout the object lifetime;
-- is independent of persistence mechanisms.
+is immutable;
+is independently constructible;
+does not depend on Storage;
+does not depend on MetadataRegistry;
+does not represent Metadata Identity;
+is not derived from Object State.
+6. Object Type
 
----
+An Object Instance is associated with one resolved Runtime Object Type.
 
-# 6. Object Type
+The Runtime Object Type is produced by RuntimeResolver.
 
-Every Domain Object is an instance of exactly one Metadata Object.
+For the current vertical slice:
 
-The Object Type defines:
+CatalogMetadata
+      ↓
+RuntimeResolver
+      ↓
+CatalogRuntime
 
-- business category;
-- available attributes;
-- relationships;
-- supported behavior.
+CatalogRuntime represents a Runtime Object Type.
 
-Object Types are defined by Metadata.
+It does not represent an individual object.
 
----
+7. Object State
 
-# 7. Object State
+Each Object Instance owns its runtime Object State.
 
-Object State represents the mutable business information associated with a Runtime Object.
+The generic Object Runtime state model is:
 
-Object State contains:
+CREATED
+ACTIVE
+DISPOSED
 
-- attribute values;
-- calculated values;
-- internal execution data;
-- business state.
+A newly created Object Instance always starts in CREATED.
 
-Object State changes during execution while Object Identity remains unchanged.
+The initial state is not selected by the caller.
 
----
+Object State is independent from persistence and does not require Storage.
 
-# 8. Object Behavior
+Object State is also not part of Object Instance identity semantics.
 
-Object Behavior defines the operations that may be performed by the Domain Object.
+8. Object Context
 
-Behavior is executed by Runtime Objects.
+Object Context represents the explicit runtime context under which an Object
+Instance exists and operates.
 
-Business behavior may consume:
+The Object Context is associated with the Phase 3
+RuntimeConfigurationContext.
 
-- Runtime Context;
-- Runtime Services;
-- Metadata;
-- Object State.
+The intended relationship is:
 
-Behavior is independent of persistence mechanisms.
+RuntimeConfigurationContext
+        ↓
+Object Context
+        ↓
+Object Instance
 
----
+Object Context must preserve the configuration snapshot semantics established
+by Phase 3.
 
-# 9. Object Relationships
+Object Context must not:
 
-Domain Objects may reference other Domain Objects.
+activate configuration;
+access configuration binding directly;
+resolve metadata independently;
+become a service locator;
+become a second configuration lifecycle.
+9. Object Lifecycle
 
-Relationships are defined by Metadata.
+Object Lifecycle defines the valid runtime transitions of an Object Instance.
 
-Runtime realizes those relationships during execution.
+The initial lifecycle is:
 
-Relationship management is independent of storage technology.
+create
+  ↓
+CREATED
+  ↓
+ACTIVE
+  ↓
+DISPOSED
 
----
+Creation establishes an Object Instance in CREATED.
 
-# 10. Object Components
+Transition to ACTIVE is explicit.
 
-Conceptually, a Domain Object consists of the following architectural components:
+Transition to DISPOSED is explicit.
 
-- Object Identity;
-- Object Type;
-- Object State;
-- Object Behavior;
-- Object Relationships.
+Disposed objects cannot be used for normal runtime operations.
 
-Future platform versions may introduce additional components.
+Lifecycle operations do not affect Configuration Lifecycle.
 
----
+10. Object Creation Boundary
 
-# 11. Object Composition
+Runtime type resolution and object creation are separate responsibilities.
 
-Object components are composed into a complete Domain Object during Runtime execution.
+The canonical relationship is:
 
-Conceptually:
+RuntimeResolver
+      ↓
+Runtime Object Type
+      ↓
+Object Creation Boundary
+      ↓
+Object Instance
 
-```
+The Object Creation Boundary consumes an already resolved Runtime Object Type
+and an Object Context.
+
+Creation establishes:
+
+Object Identity;
+Object Type;
+Object State;
+Object Context;
+CREATED lifecycle state.
+
+Creation does not:
+
+resolve metadata;
+discover global configuration;
+activate configuration;
+access MetadataRegistry directly;
+persist the object;
+create a global object registry.
+11. Object Runtime Dependencies
+
+The intended dependency direction is:
+
+runtime
+   ↓
+object
+
+The Runtime package remains responsible for runtime type resolution and
+runtime-level infrastructure.
+
+The Object package owns individual Object Instance semantics.
+
+The Object package must not independently:
+
+resolve configuration;
+resolve metadata through MetadataRegistry;
+discover runtime configuration globally;
+replace RuntimeResolver;
+own configuration activation.
+12. Object Instance Equality
+
+Object Instance equality is based on Object Identity.
+
+It is not based on:
+
+Object Type;
+Object State;
+Object Context;
+persistent representation.
+
+Therefore:
+
 Object Identity
+      ↓
+Object Instance Equality
 
-        │
-
-Object Type
-
-        │
+and:
 
 Object State
+      ✕
+Object Instance Equality
 
-        │
+Two instances of the same Runtime Object Type are distinct unless they carry
+the same Object Identity.
 
-Object Behavior
+Two representations carrying the same Object Identity remain equal even if
+their runtime state differs.
 
-        │
+13. Object Instance Independence
 
-Object Relationships
+Every Object Instance represents an individual runtime entity.
 
-        ▼
+For example:
 
-     Domain Object
-```
+CatalogRuntime
+   ├── ObjectInstance A
+   │     ├── Identity A
+   │     ├── State A
+   │     └── Context A
+   │
+   ├── ObjectInstance B
+   │     ├── Identity B
+   │     ├── State B
+   │     └── Context B
+   │
+   └── ObjectInstance C
+         ├── Identity C
+         ├── State C
+         └── Context C
 
-The composition mechanism is implementation-independent.
+The Runtime Object Type may be shared.
 
----
+Object Identity, runtime state, and object-specific context belong to the
+individual Object Instance.
 
-# 12. Runtime Representation
+14. Storage Independence
 
-During execution, a Domain Object exists as a Runtime Object.
+An Object Instance is a runtime object, not a persistence record.
 
-The Runtime Object:
+The following operation must be possible without Storage:
 
-- owns Object State;
-- executes Object Behavior;
-- participates in Runtime Contexts;
-- consumes Runtime Services.
+Resolve Runtime Object Type
+        ↓
+Create Object Instance
+        ↓
+Assign Object Identity
+        ↓
+Initialize Object State
+        ↓
+Bind Object Context
 
-The Runtime Object does not own Metadata.
+Physical persistence is a separate concern:
 
----
+Object Runtime
+      ↓
+Future Persistence Boundary
+      ↓
+Storage
 
-# 13. Persistent Representation
+Object Runtime must therefore not depend directly on a Storage provider.
 
-For persistence, the Storage subsystem creates a Persistent Object representing the business state of the Domain Object.
+15. Object Runtime and Metadata
 
-Persistent Objects are optimized for storage and durability rather than execution.
+Object Runtime consumes resolved runtime types.
 
----
+The resolution chain is:
 
-# 14. Architectural Boundaries
+Metadata Identity
+      ↓
+RuntimeResolver
+      ↓
+Runtime Object Type
+      ↓
+Object Creation Boundary
+      ↓
+Object Instance
 
-The Object Model separates:
+Object Instance must not directly access MetadataRegistry.
 
-- Metadata definition;
-- Runtime execution;
-- Object identity;
-- Object state;
-- Business behavior;
-- Persistent representation.
+Metadata resolution remains a Runtime / Configuration concern.
 
-Each concern belongs to a single architectural component.
+16. Object Runtime and Configuration
 
----
+Object Runtime consumes explicit runtime configuration context.
 
-# 15. Extensibility
+The canonical relationship is:
 
-The Object Model supports the introduction of new object categories without modifying the architectural foundation.
+ActiveConfiguration
+      ↓
+RuntimeConfigurationContext
+      ↓
+Object Context
+      ↓
+Object Instance
 
-Examples include:
+Object Runtime does not own:
 
-- Catalog Objects;
-- Document Objects;
-- Register Objects;
-- Constant Objects;
-- Enumeration Objects;
-- Processing Objects;
-- Report Objects.
+configuration definition;
+configuration validation;
+configuration activation;
+runtime configuration binding.
 
-All object categories share the same architectural composition.
+Configuration snapshot semantics established by Phase 3 must remain intact.
 
----
+An Object Instance must not silently switch to a different configuration
+snapshot merely because the globally active configuration changes.
 
-# 16. Relationship to Other Subsystems
+17. Catalog Vertical Slice
 
-The Object Model forms the architectural bridge between Metadata and Runtime while providing the conceptual foundation for Storage, Query Engine, Transactions, Events and User Interface.
+The first concrete consumer of the generic Object Model is the Standard
+Configuration Assortment catalog.
 
-Conceptually:
+The target flow is:
 
-```
-Metadata
+Standard Configuration
+        ↓
+Assortment Metadata
+        ↓
+RuntimeConfigurationContext
+        ↓
+MetadataResolver
+        ↓
+RuntimeResolver
+        ↓
+CatalogRuntime
+        ↓
+Object Creation Boundary
+        ↓
+Assortment ObjectInstance
 
-      │
+Assortment-specific code consumes the generic Object Runtime.
 
-      ▼
+It does not introduce:
 
-Object Model
+a separate identity model;
+a separate lifecycle model;
+a separate context model;
+a catalog-specific generic factory;
+a catalog-specific registry.
+18. Object Registry
 
- ┌────┼────┐
+The current Object Model does not require a global Object Registry.
 
- ▼    ▼    ▼
+Object Instances are created and operated through explicit references.
 
-Runtime Storage Query
+A registry must not be introduced merely because multiple objects can exist.
 
-      │
+A future Object Registry may be introduced only when an explicit architectural
+requirement demonstrates the need for centralized object discovery,
+ownership, lifecycle coordination, or another justified capability.
 
-      ▼
+Until then:
 
-Transactions
+Object Creation
+      ↓
+Object Instance
 
-      │
+is sufficient.
 
-      ▼
+19. Persistence Boundary
 
-UI
-```
+The Object Model deliberately stops before physical persistence.
 
----
+The boundary is:
 
-# Appendix A. Domain Object Architecture
+Object Instance
+      ↓
+Future Persistence Boundary
+      ↓
+Persistent Representation
+      ↓
+Storage
 
-```
-Metadata Object
+Persistent Representation is not the Object Instance itself.
 
-        │
+The persistence architecture may later define:
 
-     defines
+mapping;
+serialization;
+storage identity representation;
+loading;
+saving;
+transactions;
+concurrency;
+versioning.
 
-        ▼
+Those concerns are outside the Phase 4 Object Runtime model.
 
-Domain Object
+20. Explicit Non-Goals
 
-        │
+The Object Model does not define:
 
- instantiated as
+repositories;
+Unit of Work;
+dirty tracking;
+transactions;
+query execution;
+object registries;
+persistence providers;
+database schemas;
+document posting;
+register updates;
+valuation;
+reporting;
+workflow engines.
 
-        ▼
+These capabilities belong to later architectural layers.
 
-Runtime Object
+21. Architectural Invariants
 
-        │
+I1. Metadata Identity and Object Identity are distinct concepts.
 
-  owns
+I2. Runtime Object Type and Object Instance are distinct concepts.
 
-        ▼
+I3. Every Object Instance has exactly one Object Identity.
+
+I4. Every Object Instance is associated with one resolved Runtime Object
+Type.
+
+I5. Object Identity is represented technically by the existing immutable
+foundation.Identifier.
+
+I6. Object State does not define Object Identity.
+
+I7. Object Instance equality is based on Object Identity.
+
+I8. Object State is distinct from persistent state.
+
+I9. Object Lifecycle is distinct from Configuration Lifecycle.
+
+I10. Object Context uses explicit runtime configuration context.
+
+I11. Object Runtime does not independently resolve configuration or access
+MetadataRegistry.
+
+I12. RuntimeResolver resolves Runtime Object Types and does not own
+Object Instance creation.
+
+I13. Object Creation has one explicit creation boundary.
+
+I14. Object Runtime does not require Storage merely for an Object Instance
+to exist.
+
+I15. No global Object Registry is required by the current model.
+
+I16. Catalog / Assortment consumes the generic Object Runtime model.
+
+22. Implementation Correspondence
+
+The current implementation consists conceptually of:
+
+accore.platform.object
+    ├── ObjectInstance
+    ├── ObjectState
+    ├── ObjectContext
+    ├── ObjectLifecycle
+    └── ObjectCreator
+
+and:
+
+accore.platform.runtime
+    ├── RuntimeResolver
+    └── CatalogRuntime
+
+The package boundary reflects the architectural responsibility boundary.
+
+runtime resolves runtime types.
+
+object represents and operates on individual runtime objects.
+
+23. Future Evolution
+
+The Object Model is intentionally minimal.
+
+Future capabilities may extend it through explicit architectural decisions.
+
+Potential future concerns include:
+
+persistent object mapping;
+object references;
+business operations;
+documents;
+posting;
+registers;
+valuation;
+querying;
+concurrency;
+repositories;
+Unit of Work.
+
+Such extensions must preserve the distinctions and invariants established by
+this model.
+
+24. Conclusion
+
+The AcCoreD Object Model establishes one generic runtime representation for
+individual business objects.
+
+The canonical model is:
+
+Metadata Identity
+      ↓
+Runtime Object Type
+      ↓
+Object Creation Boundary
+      ↓
+Object Instance
+   ├── Object Identity
+   ├── Object Type
+   ├── Object State
+   └── Object Context
+        ↓
+Object Lifecycle
+
+with:
+
+Object Identity
+      ≠
+Metadata Identity
+
+Runtime Object Type
+      ≠
+Object Instance
 
 Object State
+      ≠
+Persistent State
 
-        │
+Object Lifecycle
+      ≠
+Configuration Lifecycle
 
- mapped to
-
-        ▼
-
-Persistent Object
-```
-
-Each representation fulfills a distinct architectural responsibility while preserving the identity of the same business entity.
-
----
-
-# Appendix B. Component Responsibilities
-
-| Component | Responsibility |
-|-----------|----------------|
-| Object Identity | Stable object identity |
-| Object Type | Metadata-defined structure |
-| Object State | Mutable business data |
-| Object Behavior | Business operations |
-| Object Relationships | Connections to other objects |
-
-Together, these components define the complete architectural model of a Domain Object.
+This establishes the Object Runtime as the stable boundary between runtime
+type resolution and future persistence or business-operation subsystems.

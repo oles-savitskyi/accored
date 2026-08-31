@@ -1,7 +1,7 @@
 # Object Lifecycle
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Accepted / Implemented in progress
 
 ---
 
@@ -9,7 +9,7 @@
 
 The Object Lifecycle defines the architectural existence of Runtime Objects within the AcCore Runtime Environment.
 
-It specifies how Runtime Objects are created, become active and are eventually disposed.
+It specifies the generic runtime lifecycle of Object Instances: `CREATED → ACTIVE → DISPOSED`.
 
 The Object Lifecycle describes object existence only.
 
@@ -41,13 +41,13 @@ It does not describe business state or persistence state.
 
 ## Objects are created from Metadata
 
-Every Runtime Object is instantiated according to a Metadata Object.
+A Runtime Object Type is resolved from Metadata before an Object Instance is created. Object creation itself is a separate boundary.
 
 ---
 
 ## Runtime owns object lifetime
 
-Runtime is responsible for object creation and disposal.
+Object Creation Boundary owns instance creation. Object Lifecycle owns lifecycle transition semantics. Runtime orchestrates object execution.
 
 Business logic does not manage object existence directly.
 
@@ -55,7 +55,7 @@ Business logic does not manage object existence directly.
 
 ## Lifecycle is deterministic
 
-The same creation process always produces equivalent Runtime Objects from equivalent Metadata and initial state.
+Lifecycle transitions are explicit and deterministic; invalid transitions raise `ObjectLifecycleError`.
 
 ---
 
@@ -91,7 +91,7 @@ Disposal
 Disposed
 ```
 
-Only Active Objects participate in Runtime execution.
+`ACTIVE` is the normal runtime lifecycle state. The current implementation keeps `ObjectInstance` immutable and returns new `ObjectState` values from lifecycle operations.
 
 ---
 
@@ -134,7 +134,7 @@ After disposal, the Runtime Object no longer participates in execution.
 
 # 6. Lifecycle Ownership
 
-The Runtime Environment owns the lifecycle of Runtime Objects.
+Runtime orchestrates object execution.
 
 Subsystems may use Runtime Objects but do not control their lifetime.
 
@@ -229,3 +229,19 @@ Disposal
 ```
 
 The Runtime manages the complete existence of Runtime Objects.
+
+---
+
+## Phase 4 Implementation Alignment
+
+```text
+ObjectCreator
+    ↓
+CREATED
+    ↓ activate()
+ACTIVE
+    ↓ dispose()
+DISPOSED
+```
+
+Lifecycle operations do not activate or mutate runtime configuration and do not require Storage.

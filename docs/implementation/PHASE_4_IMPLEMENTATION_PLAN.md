@@ -1,12 +1,12 @@
 # Phase 4 — Object Runtime Implementation Plan
 
-**Status:** In progress
+**Status:** In progress — Step 10
 
-**Version:** 1.1
+**Version:** 1.2
 
 **Phase:** 4 — Object Runtime
 
-**Architectural Definition:** `PHASE_4_ARCHITECTURAL_DEFINITION.md` v1.0
+**Architectural Definition:** `PHASE_4_ARCHITECTURAL_DEFINITION.md` v1.1
 
 **Depends on:** `phase-3-final`
 
@@ -346,9 +346,16 @@ I4. CatalogRuntime represents an Object Type, not an Object Instance.
 
 I5. RuntimeResolver resolves Object Types and does not own instance creation.
 
-I6. ObjectInstance does not require Storage access merely to exist.
+I6. Object Runtime depends on `RuntimeObjectType`, not on concrete Runtime
+Object Type implementations.
 
-I7. ObjectInstance equality is based on Object Identity, not Object State.
+The generic Object Runtime may consume any implementation satisfying the
+`RuntimeObjectType` contract. It must not require `CatalogRuntime` or another
+concrete Runtime Object Type implementation.
+
+I7. ObjectInstance does not require Storage access merely to exist.
+
+I8. ObjectInstance equality is based on Object Identity, not Object State.
 
 ### Tests
 
@@ -396,8 +403,7 @@ Object State must:
 * belong to an Object Instance;
 * be independent from persistence;
 * preserve Object Identity independently from state;
-* define the generic runtime lifecycle states:
-
+* define the minimum runtime lifecycle states required by Phase 4:
   * `CREATED`;
   * `ACTIVE`;
   * `DISPOSED`;
@@ -408,6 +414,10 @@ Object State must:
 
 State transition operations are outside the current Step 3 implementation
 scope and will be introduced through a dedicated lifecycle boundary.
+
+These values represent the current Object Runtime lifecycle state model.
+Phase 4 does not introduce a generalized state machine or a separate
+metadata-defined state engine.
 
 ### Current Initial-State Contract
 
@@ -457,7 +467,7 @@ Object State has no direct dependency on Storage or persistence mechanisms.
 
 ---
 
-# 9. Step 4 — Object Context
+# 9. Step 4 — Object Context — Implemented
 
 ### Objective
 
@@ -497,9 +507,13 @@ RuntimeConfigurationContext
     Object Instance
 ```
 
-The exact implementation shape may be a dedicated object context abstraction
-or another cohesive representation, provided the architectural boundary
-remains explicit.
+The implementation uses a dedicated `ObjectContext` abstraction.
+
+`ObjectContext` represents the runtime context of an individual Object
+Instance and carries the relevant `RuntimeConfigurationContext`.
+
+It does not own configuration activation, configuration publication or
+configuration discovery.
 
 ### Tests
 
@@ -513,13 +527,13 @@ At minimum:
 
 ### Quality Gate
 
-**P4-QG4 — Context Boundary**
+**P4-QG4 — Context Boundary — CLOSED**
 
 Object Context is compatible with Phase 3 context semantics.
 
 ---
 
-# 10. Step 5 — Object Lifecycle
+# 10. Step 5 — Object Lifecycle — Implemented
 
 ### Objective
 
@@ -569,13 +583,13 @@ At minimum:
 
 ### Quality Gate
 
-**P4-QG5 — Lifecycle**
+**P4-QG5 — Lifecycle — CLOSED**
 
 Lifecycle transitions are explicit and deterministic.
 
 ---
 
-# 11. Step 6 — Object Creation Boundary
+# 11. Step 6 — Object Creation Boundary — Implemented
 
 ### Objective
 
@@ -654,13 +668,13 @@ At minimum:
 
 ### Quality Gate
 
-**P4-QG6 — Creation Ownership**
+**P4-QG6 — Creation Ownership — CLOSED**
 
 One explicit creation boundary owns Object Instance creation.
 
 ---
 
-# 12. Step 7 — RuntimeResolver → Object Runtime Integration
+# 12. Step 7 — RuntimeResolver → Object Runtime Integration — Implemented
 
 ### Objective
 
@@ -720,13 +734,13 @@ At minimum:
 
 ### Quality Gate
 
-**P4-QG7 — RuntimeResolver Boundary**
+**P4-QG7 — RuntimeResolver Boundary — CLOSED**
 
 Runtime type resolution and Object Instance creation remain distinct.
 
 ---
 
-# 13. Step 8 — Catalog / Assortment Integration
+# 13. Step 8 — Catalog / Assortment Integration — Implemented
 
 ### Objective
 
@@ -778,13 +792,13 @@ It must not introduce:
 
 ### Quality Gate
 
-**P4-QG8 — Generic Catalog Consumer**
+**P4-QG8 — Generic Catalog Consumer — CLOSED**
 
 Assortment is represented as a consumer of the generic Object Runtime.
 
 ---
 
-# 14. Step 9 — Public API Alignment
+# 14. Step 9 — Public API Alignment — Implemented
 
 ### Objective
 
@@ -815,7 +829,7 @@ stable enough for Phase 4.
 
 ### Quality Gate
 
-**P4-QG9 — Public API**
+**P4-QG9 — Public API — CLOSED**
 
 Phase 4 public API is explicit and minimal.
 
@@ -1071,10 +1085,40 @@ Test individual:
 
 Test:
 
-* RuntimeResolver → Object Creation;
+* RuntimeResolver → Object Runtime Type → Object Creation;
 * Object Runtime → RuntimeConfigurationContext;
 * Object Runtime → Storage boundary;
 * Catalog → Generic Object Runtime.
+
+### P4-CROSS-01 — Object Runtime → Runtime Boundary
+
+**Status:** CLOSED
+
+The Phase 4 Object Runtime depends on the Runtime subsystem only through
+the `RuntimeObjectType` architectural contract.
+
+`RuntimeResolver` produces resolved `RuntimeObjectType` instances, while
+`ObjectCreator` and `ObjectInstance` consume that contract without depending
+on concrete Runtime implementations such as `CatalogRuntime`.
+
+Validation confirms that:
+
+- Object Runtime does not import `CatalogRuntime`;
+- Object Runtime does not import `RuntimeResolver`;
+- Object Runtime does not access `MetadataRegistry` directly;
+- Object Runtime has no direct Storage dependency;
+- Object Runtime receives configuration through the explicit
+  `RuntimeConfigurationContext` carried by `ObjectContext`;
+- `RuntimeObjectType` is a `Protocol` and therefore represents an
+  architectural dependency boundary rather than a concrete Runtime
+  implementation.
+
+The concrete `CatalogRuntime` implementation is used only as a Runtime Object
+Type implementation and may be replaced without changing the generic Object
+Runtime.
+
+Therefore the Runtime → Object Runtime boundary is considered architecturally
+closed for Phase 4.
 
 ---
 
@@ -1183,25 +1227,71 @@ Future downstream subsystem.
 
 # 23. Phase 4 Definition of Done
 
-Phase 4 is complete when:
+Phase 4 is complete when all architectural, implementation, boundary, and
+validation requirements of the Object Runtime have been satisfied.
 
-* [ ] Object Identity is implemented.
-* [ ] Object Instance contract is implemented.
-* [ ] Object State is implemented.
-* [ ] Object Context is implemented.
-* [ ] Object Lifecycle is implemented.
-* [ ] Object Creation Boundary is implemented.
-* [ ] RuntimeResolver integration is complete.
-* [ ] Assortment uses the generic Object Runtime.
-* [ ] No Storage dependency exists in Object Runtime.
-* [ ] No Object Registry has been introduced without justification.
-* [ ] Public APIs are aligned.
-* [ ] Documentation is aligned.
-* [ ] Unit tests pass.
-* [ ] Boundary tests pass.
-* [ ] Vertical slice passes.
-* [ ] Full regression passes.
+## 23.1 Object Runtime Implementation
+
+* [x] Object Identity is implemented.
+* [x] Object Instance contract is implemented.
+* [x] Object State is implemented.
+* [x] Object Context is implemented.
+* [x] Object Lifecycle is implemented.
+* [x] Object Creation Boundary is implemented.
+
+## 23.2 Runtime Integration
+
+* [x] RuntimeResolver integration is complete.
+* [x] RuntimeResolver resolves Runtime Object Types and does not create
+  Object Instances.
+* [x] Object Runtime depends on Runtime only through `RuntimeObjectType`.
+* [x] Object Runtime has no dependency on concrete `CatalogRuntime`.
+* [x] Object Runtime does not resolve configuration independently.
+* [x] Object Runtime consumes an explicit `ObjectContext`.
+* [x] `ObjectContext` preserves the supplied `RuntimeConfigurationContext`
+  snapshot.
+
+## 23.3 Storage and Infrastructure Boundaries
+
+* [x] No Storage dependency exists in Object Runtime.
+* [x] Object Runtime does not require Storage for Object Instance creation.
+* [x] Object Runtime does not depend on persistence mechanisms.
+* [x] Storage remains downstream from Object Runtime.
+* [x] No Object Registry has been introduced.
+
+## 23.4 Generic Runtime and Catalog Integration
+
+* [x] Catalog / Assortment uses the generic Object Runtime.
+* [x] Catalog-specific runtime behavior does not redefine the generic
+  Object Runtime lifecycle.
+* [x] `CatalogRuntime` remains a Runtime Object Type rather than an
+  Object Instance.
+* [x] Generic Object Runtime semantics are independent of Catalog-specific
+  implementation details.
+
+## 23.5 Public API and Documentation
+
+* [x] Public APIs are aligned.
+* [x] Object Runtime documentation is aligned with the implemented
+  architecture.
+* [x] Runtime/Object architectural boundaries are explicitly documented.
+* [x] Storage independence is explicitly documented.
+* [x] Object Registry remains explicitly deferred.
+
+## 23.6 Validation
+
+* [x] Unit tests pass.
+* [x] Boundary tests pass.
+* [x] Vertical slice passes.
+* [x] Full regression passes.
+* [x] `ruff check .` passes.
+* [x] `black --check .` passes.
+* [x] `mypy src` passes.
 * [ ] Final architectural audit passes.
+
+Phase 4 is considered complete only after the final architectural audit
+confirms that the implemented system remains consistent with the Phase 4
+architectural definition and ADRs.
 
 ---
 
@@ -1277,3 +1367,29 @@ activation, persistence, or global object registration.
 Object Identity is represented by the existing immutable
 `foundation.Identifier`, while remaining architecturally distinct from
 Metadata Identity and Configuration Identity.
+
+---
+
+# Phase 4 Implementation Alignment
+
+As of the current implementation baseline (`0208966`), Steps 1–9 are implemented and Step 10 is in progress.
+
+Implemented runtime boundaries:
+
+```text
+RuntimeConfigurationContext
+        ↓
+MetadataResolver
+        ↓
+RuntimeResolver
+        ↓
+CatalogRuntime
+        ↓
+ObjectCreator
+        ↓
+ObjectInstance
+        ↓
+ObjectLifecycle
+```
+
+The current test baseline includes the Object and Runtime unit suites, the Object Lifecycle integration test, the Assortment vertical slice, and the Runtime public API test.

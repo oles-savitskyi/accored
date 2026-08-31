@@ -1,7 +1,7 @@
 # Object Context
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Accepted / Implemented in progress
 
 ---
 
@@ -32,7 +32,7 @@ The Object Context is designed to provide:
 
 ## Runtime owns Object Context
 
-Object Context is created and managed exclusively by the Runtime.
+Object Context is supplied explicitly to an Object Instance by the Object Creation Boundary.
 
 Domain Objects do not create or manage Object Contexts.
 
@@ -40,7 +40,7 @@ Domain Objects do not create or manage Object Contexts.
 
 ## Object Context is local
 
-Each Runtime Object executes within its own Object Context.
+Each Object Instance carries exactly one Object Context.
 
 Object Context represents the execution environment of a single Runtime Object.
 
@@ -48,15 +48,15 @@ Object Context represents the execution environment of a single Runtime Object.
 
 ## Runtime Context creates Object Contexts
 
-Object Contexts are derived from the current Runtime Context.
+Object Context retains the exact `RuntimeConfigurationContext` supplied at creation time.
 
-The Runtime determines which contextual information becomes available to each Runtime Object.
+The current Phase 4 implementation keeps Object Context intentionally narrow and does not expose configuration binding or global discovery.
 
 ---
 
 ## Context exposes contracts
 
-Object Context provides access through architectural Service Contracts.
+Object Context is not a service locator; future service access must remain explicit and contract-based.
 
 Runtime implementation details remain encapsulated.
 
@@ -102,7 +102,6 @@ Object Context bridges Runtime infrastructure and business execution.
 
 The Object Context is responsible for:
 
-- exposing Runtime Services;
 - providing execution parameters;
 - exposing transaction information;
 - exposing security information;
@@ -115,14 +114,11 @@ Object Context does not execute business behavior.
 
 # 6. Context Components
 
-An Object Context may conceptually include:
+An Object Context includes:
 
-- Runtime Service access;
-- Transaction information;
-- Security information;
-- Localization settings;
-- Execution parameters;
-- Diagnostic information.
+- RuntimeConfigurationContext
+
+Additional contextual capabilities are deferred until an actual object-runtime requirement establishes them.
 
 The concrete implementation remains architecture-independent.
 
@@ -130,7 +126,7 @@ The concrete implementation remains architecture-independent.
 
 # 7. Relationship to Runtime Context
 
-Runtime Context defines the global execution environment.
+`RuntimeConfigurationContext` defines the configuration snapshot relevant to the Object Runtime.
 
 Object Context represents the Runtime Environment as seen by a single Runtime Object.
 
@@ -264,3 +260,9 @@ The Runtime creates and associates Object Contexts before business execution beg
 | Domain Object | Business model |
 
 Object Context provides the architectural boundary between Runtime infrastructure and business behavior.
+
+---
+
+## Phase 4 Implementation Alignment
+
+The implemented context is an immutable `ObjectContext` containing exactly one `RuntimeConfigurationContext`. Replacing the active configuration does not silently change an existing Object Context.

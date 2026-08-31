@@ -1,7 +1,7 @@
 # Object Identity
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Accepted / Implemented in progress
 
 ---
 
@@ -9,7 +9,7 @@
 
 The Object Identity architecture defines the immutable identity of Domain Objects within the AcCore platform.
 
-Object Identity provides a stable architectural identity shared by all representations of a Domain Object, including Metadata, Runtime and Storage.
+Object Identity provides the immutable identity of an individual Object Instance. It is distinct from Metadata Identity and Configuration Identity. Storage may preserve Object Identity in a persistent representation, but does not own runtime identity.
 
 Identity enables references, persistence, transactions and distributed execution while remaining independent of implementation details.
 
@@ -42,13 +42,13 @@ Changes to Object State do not affect Object Identity.
 
 Object Identity is an architectural concept.
 
-The concrete identifier format is an implementation decision.
+Phase 4 uses the existing immutable ULID-backed `foundation.Identifier` as the technical representation. No separate `ObjectIdentity` value type is introduced.
 
 ---
 
-## Identity is shared by all representations
+## Identity is distinct from Metadata Identity
 
-Metadata Objects, Runtime Objects and Persistent Objects represent the same Domain Object through a common Object Identity.
+Metadata Identity identifies a metadata definition. Object Identity identifies an individual Object Instance. A Persistent Object may preserve Object Identity without redefining it.
 
 ---
 
@@ -92,7 +92,7 @@ Object Identity connects all architectural representations of the same Domain Ob
 
 Object Identity is established when a Domain Object is created.
 
-The Runtime is responsible for assigning Object Identity according to platform rules.
+The Object Creation Boundary is responsible for assigning Object Identity to newly created Object Instances.
 
 The identity creation mechanism is implementation-independent.
 
@@ -114,9 +114,9 @@ Identity remains valid throughout:
 
 # 7. Identity Ownership
 
-Object Identity belongs to the Domain Object.
+Object Identity belongs to the Object Instance boundary.
 
-Neither Runtime nor Storage owns Object Identity.
+`RuntimeResolver` resolves Object Types; `ObjectCreator` establishes identity for a new instance; Storage may preserve that identity in a Persistent Object.
 
 They only maintain representations associated with it.
 
@@ -156,7 +156,7 @@ Runtime Context influences execution but never alters identity.
 
 # 12. Extensibility
 
-The architecture permits different identifier implementations while preserving a common Object Identity model.
+The Phase 4 implementation intentionally standardizes on the existing ULID-backed `Identifier`. A separate identity wrapper is deferred unless a future requirement demonstrates the need.
 
 Possible implementations include:
 
@@ -223,7 +223,7 @@ Persistent Representation
 Object Disposal
 ```
 
-Object Identity remains unchanged throughout the lifetime of the Domain Object.
+Disposal terminates the runtime lifecycle of the Object Instance but does not redefine the Object Identity of the represented business object.
 
 ---
 
@@ -238,3 +238,12 @@ Object Identity remains unchanged throughout the lifetime of the Domain Object.
 | Object Reference | Architectural relationship based on identity |
 
 Object Identity provides the stable foundation connecting every architectural representation of a Domain Object.
+
+---
+
+## Phase 4 Implementation Alignment
+
+- `ObjectInstance.identity` is an immutable `Identifier`.
+- Object Instance equality is based on identity, not state.
+- Object Identity is independent of Metadata Identity and persistence.
+- `ObjectCreator` generates identity for newly created instances.

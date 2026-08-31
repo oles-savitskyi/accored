@@ -1,7 +1,7 @@
 # Object Factory
 
-**Version:** 1.0  
-**Status:** Draft
+**Version:** 1.1
+**Status:** Accepted / Implemented in progress
 
 ---
 
@@ -9,7 +9,7 @@
 
 The Object Factory defines the architectural mechanism responsible for creating Runtime Objects within the AcCore platform.
 
-The Object Factory transforms Metadata-defined Domain Objects into executable Runtime Objects while preserving architectural separation between Metadata, Runtime and Storage.
+The Object Creation Boundary creates individual Object Instances from already resolved Runtime Object Types while preserving separation between Metadata, Runtime and Storage.
 
 Object creation is exclusively managed by the Runtime through the Object Factory.
 
@@ -30,17 +30,19 @@ The Object Factory is designed to provide:
 
 # 3. Architectural Principles
 
-## Runtime owns object creation
+## Object Runtime owns object creation
 
-Runtime Objects are created exclusively by the Runtime through the Object Factory.
+Object Instances are created through one explicit Object Creation Boundary,
+implemented as `ObjectCreator` in Phase 4.
 
-Business logic shall not instantiate Runtime Objects directly.
+The Runtime package resolves Runtime Object Types, while the Object Runtime
+owns individual Object Instance creation.
 
 ---
 
 ## Metadata defines creation
 
-The Object Factory creates Runtime Objects according to Metadata definitions.
+`ObjectCreator` consumes an already resolved `CatalogRuntime` Runtime Object Type and an explicit `ObjectContext`.
 
 Metadata specifies object structure but does not create object instances.
 
@@ -62,7 +64,7 @@ Concrete implementations may vary without affecting the architectural model.
 
 ## Factory does not own objects
 
-The responsibility of the Object Factory ends after successful object creation.
+Creation returns an Object Instance in `CREATED` state. Lifecycle transitions are owned by `ObjectLifecycle`.
 
 Lifecycle management belongs to the Runtime.
 
@@ -102,11 +104,10 @@ The Object Factory performs object creation only.
 
 The Object Factory is responsible for:
 
-- validating Metadata required for creation;
-- creating Runtime Objects;
-- assigning Object Identity when required;
-- initializing Runtime State;
-- associating the Runtime Object with the current Runtime Context.
+- generating Object Identity;
+- associating Runtime Object Type;
+- associating Object Context;
+- establishing initial CREATED state.
 
 The Object Factory does not execute business behavior.
 
@@ -139,9 +140,9 @@ Metadata remains immutable during object creation.
 
 # 8. Relationship to Runtime
 
-The Object Factory is a Runtime Service.
+The Object Creation Boundary is part of the Object Runtime boundary and does not replace the Runtime package.
 
-The Runtime invokes the Object Factory whenever a new Runtime Object must be created.
+The Object Creation Boundary is invoked with a resolved Runtime Object Type and explicit Object Context; it does not perform metadata resolution or configuration discovery.
 
 Object creation becomes part of the Runtime lifecycle.
 
@@ -149,7 +150,7 @@ Object creation becomes part of the Runtime lifecycle.
 
 # 9. Relationship to Object Identity
 
-The Object Factory establishes the Object Identity of newly created Domain Objects according to platform rules.
+`ObjectCreator` generates a new immutable ULID-backed `foundation.Identifier` for a newly created Object Instance.
 
 Identity generation mechanisms are implementation-specific.
 
@@ -159,7 +160,7 @@ The architectural responsibility for establishing identity belongs to the Object
 
 # 10. Relationship to Runtime Context
 
-Every Runtime Object is associated with a Runtime Context during creation.
+Every Object Instance is associated with an explicit `ObjectContext` during creation.
 
 The Runtime Context provides the execution environment required by the object.
 
@@ -167,15 +168,19 @@ The Runtime Context provides the execution environment required by the object.
 
 # 11. Relationship to Storage
 
-The Object Factory creates Runtime Objects independently of persistence.
+The Object Factory creates Object Instances independently of persistence.
 
-Objects may be:
+Object creation does not:
 
-- newly created;
-- restored from persistent storage;
-- created for temporary Runtime execution.
+- access Storage;
+- persist the Object Instance;
+- restore persistent state;
+- create a persistent representation.
 
-Creation semantics remain identical.
+Persistence and restoration are deferred to the future persistence architecture.
+
+The Object Creation Boundary therefore remains valid for runtime-only object
+creation without requiring Storage.
 
 ---
 
@@ -218,18 +223,20 @@ Object Factory
 
       ▼
 
-Runtime Object
-
-      │
-
- ┌────┼────┐
-
- ▼    ▼    ▼
-
-Context Registry Storage
+RuntimeResolver
+      ↓
+CatalogRuntime (Runtime Object Type)
+      +
+ObjectContext
+      ↓
+ObjectCreator
+      ↓
+ObjectInstance [CREATED]
 ```
 
 The Object Factory creates Runtime Objects and delegates subsequent responsibilities to the appropriate Runtime subsystems.
+
+No implicit configuration activation, Metadata Registry access, persistence, or Object Registry registration occurs during creation.
 
 ---
 

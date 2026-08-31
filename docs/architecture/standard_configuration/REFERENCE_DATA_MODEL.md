@@ -125,7 +125,53 @@ Assortment serves as the primary business object catalog for:
 * reporting;
 * cost allocation.
 
+In the runtime, Assortment is consumed through the generic Object Runtime. Its metadata resolves to `CatalogRuntime`, and `ObjectCreator` can create an `ObjectInstance` with an explicit `ObjectContext`. Assortment does not define a separate identity, lifecycle, context, factory, or registry model.
+
 Economic objects are the primary receivers of allocated costs.
+
+---
+
+## Assortment and Object Runtime
+
+`Assortment` is a Standard Configuration catalog and therefore a consumer of
+the generic Object Runtime.
+
+The Assortment metadata definition describes the object type. Its resolved
+runtime representation is `CatalogRuntime`.
+
+Individual assortment records are represented by `ObjectInstance`.
+
+The relationship is:
+
+    Assortment Metadata
+          ↓
+    CatalogRuntime
+    (Runtime Object Type)
+          ↓
+    ObjectInstance
+    (individual assortment object)
+
+Therefore:
+
+    Assortment Metadata ≠ ObjectInstance
+
+and:
+
+    CatalogRuntime ≠ ObjectInstance
+
+Assortment-specific implementation MUST use the generic Object Runtime
+contracts for object identity, state, context, lifecycle, and creation.
+
+Assortment MUST NOT introduce:
+
+- a separate object identity model;
+- a separate object lifecycle model;
+- a separate object context;
+- a catalog-specific generic object factory;
+- a catalog-specific object registry.
+
+The Standard Configuration Assortment therefore validates the generic Object
+Runtime without creating a parallel object model.
 
 ---
 

@@ -299,3 +299,66 @@ Storage and Runtime implementations are generated from Metadata definitions.
 ## Extensibility
 
 New types may be added without modifying existing type semantics.
+
+---
+
+# Runtime Object Identity
+
+Platform Types define metadata field/value types. They do not define Object Identity. Phase 4 represents Object Identity with the immutable ULID-backed `foundation.Identifier`, distinct from Metadata Identity.
+
+## Runtime Object Type vs Object Instance
+
+The Type System distinguishes a resolved runtime object type from an individual
+runtime object instance.
+
+`CatalogRuntime` is a Runtime Object Type.
+
+It represents the executable runtime semantics of a metadata-defined Catalog
+type within a specific `RuntimeConfigurationContext`.
+
+It does not represent an individual business object.
+
+An `ObjectInstance` is an individual runtime object created from a resolved
+Runtime Object Type.
+
+The relationship is:
+
+    Catalog Metadata
+          ↓
+    CatalogRuntime
+    (Runtime Object Type)
+          ↓
+    ObjectInstance
+    (individual object)
+
+Therefore:
+
+    CatalogRuntime ≠ ObjectInstance
+
+One resolved Runtime Object Type may be used to create multiple independent
+Object Instances:
+
+    CatalogRuntime
+       ├── ObjectInstance A
+       ├── ObjectInstance B
+       └── ObjectInstance C
+
+`RuntimeResolver` is responsible for resolving `CatalogRuntime` from metadata
+and runtime configuration context.
+
+The Object Creation Boundary is responsible for creating `ObjectInstance`
+objects from an already resolved Runtime Object Type.
+
+`CatalogRuntime` MUST NOT own Object Instance identity, object lifecycle, or
+individual object state.
+
+`ObjectInstance` MUST NOT independently resolve metadata or discover runtime
+configuration.
+
+This distinction is fundamental to the Runtime / Object boundary:
+
+    Runtime Type Resolution
+            ↓
+    Runtime Object Type
+            ↓
+    Object Instance Creation

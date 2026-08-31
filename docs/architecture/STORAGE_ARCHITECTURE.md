@@ -1,6 +1,6 @@
 # STORAGE_ARCHITECTURE.md
 
-Version: 1.0 (Draft)
+Version: 1.1
 
 Status: Architecture Specification
 
@@ -130,7 +130,7 @@ New storage providers MAY be added without changing:
 
 All persistent objects MUST follow identical persistence rules.
 
-Object identity, references, transactions and versioning MUST behave consistently across the entire platform.
+Persistent identity, references, transactions and versioning MUST behave consistently while remaining distinct from runtime Object Instance lifecycle semantics.
 
 ---
 
@@ -180,7 +180,7 @@ All physical implementation details are internal to the Storage subsystem.
 
 ## Principle 3 — Stable Object Identity
 
-Every persistent object MUST have a globally unique identifier.
+Every persistent object MUST preserve the Object Identity assigned at the Object Instance boundary. Storage does not own generation of runtime Object Identity.
 
 Object identity MUST remain stable during the entire object lifetime.
 
@@ -743,11 +743,35 @@ References MUST remain valid throughout the lifetime of the referenced object.
 
 ## 6.4 Identity Generation
 
-Identity generation SHALL be performed by the Identity Manager.
+Runtime Object Identity is established at the Object Instance creation
+boundary.
 
-The Storage Provider MUST NOT generate business object identifiers independently.
+The Object Creation Boundary generates the immutable ULID-backed Object
+Identity for a newly created Object Instance.
 
-This guarantees identical identity behavior across all providers.
+Storage MUST NOT generate or replace Runtime Object Identity.
+
+When an Object Instance is persisted, Storage preserves the Object Identity
+assigned by Runtime.
+
+Storage Provider implementations MUST NOT introduce provider-specific
+business object identifiers as replacements for Runtime Object Identity.
+
+Therefore:
+
+    Object Creation
+          ↓
+    Object Identity
+          ↓
+    Object Instance
+          ↓
+    Persistence
+          ↓
+    Storage
+
+Storage identity and physical row identity, where required internally, are
+implementation details of the Storage subsystem and MUST NOT replace Runtime
+Object Identity.
 
 ---
 
@@ -1125,7 +1149,7 @@ Storage Entities are internal to the Storage subsystem.
 
 Business logic MUST NOT interact with Storage Entities directly.
 
-The Runtime subsystem is responsible for translating Runtime Objects into Storage Entities and vice versa.
+The Storage subsystem provides the future persistence boundary for Runtime Objects. Object Instance creation and lifecycle do not require Storage access.
 
 ---
 
@@ -1253,6 +1277,29 @@ deleted
 ```
 
 Specialized Storage Entities MAY extend this property set.
+
+---
+
+## Runtime Object Independence
+
+A Persistent Entity is a Storage-level persistence model.
+
+A Persistent Entity MUST NOT be treated as the Runtime Object Type or as the
+Object Instance itself.
+
+The relationship is:
+
+    Runtime Object Instance
+            │
+            │ future persistence boundary
+            ▼
+    Persistent Entity
+
+A Runtime Object Instance may exist without a corresponding Persistent Entity.
+
+Persistence creates or updates a Persistent Entity representation without
+changing the architectural identity or lifecycle semantics of the Runtime
+Object Instance.
 
 ---
 

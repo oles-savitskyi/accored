@@ -1,8 +1,8 @@
 # Implementation Roadmap
 
 **Project:** AcCoreD
-**Stage:** Standard Edition — Design & Implementation Planning
-**Status:** Draft
+**Stage:** Standard Edition — Design & Implementation
+**Status:** Active
 **Architecture Baseline:** `architecture-core-3.0`
 **Implementation Strategy:** `IMPLEMENTATION_STRATEGY.md`
 **Repository Structure:** `REPOSITORY_STRUCTURE.md`
@@ -1289,17 +1289,13 @@ Hard-coding the business rule into Platform should be the last option.
 
 # 25. First Implementation Target
 
-The first actual implementation target after roadmap approval is:
+The current implementation sequence has reached Phase 4:
 
 ```text
-Phase 0
-    ↓
-Phase 1
-    ↓
-Phase 2
-    ↓
-Phase 3
+Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 ```
+
+Phase 4 establishes the generic Object Runtime boundary between Runtime Object Type resolution and future persistence.
 
 resulting in:
 
@@ -1307,23 +1303,27 @@ resulting in:
 
 This is the first concrete proof that the architecture has successfully transitioned into implementation.
 
-The target flow is:
+The current Phase 4 target flow is:
 
 ```text
 Assortment Definition
         ↓
 Configuration Metadata
         ↓
-Metadata Registry
+RuntimeConfigurationContext
         ↓
-Catalog Runtime
+MetadataResolver
         ↓
-Storage
+RuntimeResolver
         ↓
-Assortment Records
+CatalogRuntime
         ↓
-Query
+ObjectCreator
+        ↓
+Assortment ObjectInstance
 ```
+
+Physical Storage remains outside this Phase 4 flow.
 
 The first implementation should deliberately remain small.
 

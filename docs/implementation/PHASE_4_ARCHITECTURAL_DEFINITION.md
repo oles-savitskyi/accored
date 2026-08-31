@@ -1,9 +1,9 @@
 # Phase 4 — Object Runtime Architectural Definition
 
-**Status:** Proposed  
-**Version:** 1.0  
-**Phase:** 4  
-**Depends on:** `phase-3-final`  
+**Status:** Accepted / Implemented in progress
+**Version:** 1.1
+**Phase:** 4
+**Depends on:** `phase-3-final`
 **Architectural baseline:** `architecture-core-3.0`
 
 ---
@@ -289,14 +289,20 @@ Those belong to the Storage Architecture.
 
 # 9. Object State
 
-Object State represents the runtime state of an individual Object Instance.
+Object State represents the runtime state associated with an individual
+Object Instance.
 
-Object State is distinct from:
+For the minimum Phase 4 implementation, Object State represents the object's
+runtime lifecycle state.
 
-- metadata structure;
-- configuration state;
-- lifecycle state;
-- physical persistence state.
+Object Runtime State is distinct from:
+
+- persistent state;
+- persisted representation;
+- storage-managed state.
+
+The current Phase 4 runtime state model is intentionally minimal and does not
+define a generalized state engine.
 
 Conceptually:
 
@@ -304,8 +310,8 @@ Conceptually:
           │
           └── Runtime State
 
-Object State may contain values defined by the object's metadata and
-runtime-required state.
+Future Object State may include runtime values derived from object semantics,
+but Phase 4 does not define a generalized metadata-driven state model.
 
 ## 9.1 Separation from Metadata
 
@@ -845,6 +851,41 @@ Object Runtime does not load, validate, activate, or mutate configuration.
 
 Object Runtime does not bypass MetadataResolver / RuntimeResolver boundaries.
 
+### Runtime Object Type Boundary
+
+Object Runtime consumes Runtime Object Types through the
+`RuntimeObjectType` architectural contract.
+
+The contract is intentionally independent from concrete Runtime
+implementations. `RuntimeResolver` produces resolved `RuntimeObjectType`
+instances, while Object Runtime consumes them through the published
+contract.
+
+The dependency is therefore:
+
+```text
+RuntimeResolver
+      │
+      ▼
+RuntimeObjectType
+      │
+      ▼
+Object Runtime
+```
+
+and not a dependency on a concrete implementation such as CatalogRuntime.
+
+Object Runtime MUST NOT import or otherwise require a concrete Runtime Object
+Type implementation.
+
+A concrete implementation such as CatalogRuntime MAY implement
+RuntimeObjectType and MAY be used by integration or vertical-slice tests,
+but it is not part of the generic Object Runtime dependency boundary.
+
+This ensures that the generic Object Runtime remains reusable for future
+catalog, document, reference-data and other Runtime Object Type
+implementations.
+
 ## P4-I9 — Storage Independence
 
 Object Runtime does not depend on physical persistence.
@@ -1242,3 +1283,24 @@ storage-independent.
 
 This boundary is the foundation for future Catalog, Document, Posting and
 other business capabilities.
+
+---
+
+# Phase 4 Implementation Alignment
+
+The accepted Phase 4 architecture is now partially implemented.
+
+The current implementation establishes:
+
+- `CatalogRuntime` as the Runtime Object Type for the catalog vertical slice;
+- `ObjectInstance` as the individual runtime object;
+- immutable Object Identity using `foundation.Identifier`;
+- immutable `ObjectContext` retaining `RuntimeConfigurationContext`;
+- `ObjectState.CREATED`, `ACTIVE`, and `DISPOSED`;
+- explicit `ObjectLifecycle` transition rules;
+- `ObjectCreator` as the sole Object Instance creation boundary;
+- RuntimeResolver as a type resolver only;
+- no Object Registry;
+- no Storage dependency in Object Runtime creation or lifecycle.
+
+The remaining Phase 4 work is documentation alignment, full regression, and final architectural audit.
