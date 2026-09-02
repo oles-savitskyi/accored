@@ -1003,14 +1003,11 @@ The conceptual boundary is:
 
 ## Runtime Object State
 
-Runtime Object State represents values and runtime state belonging to an
-individual object instance.
+For the minimum Phase 4 implementation, Object State represents the runtime lifecycle state of an individual Object Instance.
 
-It may include:
+The current Phase 4 Object State model is intentionally limited to lifecycle state and does not define a generalized metadata-driven model for business values or mutable object attributes.
 
-- metadata-defined attributes;
-- runtime-managed values;
-- object-level state required for execution.
+Future phases may extend Object State with runtime business values, metadata-defined attributes, and other object-level state required for execution. Such extensions are outside the scope of Phase 4.
 
 The exact state model is implementation-defined within the constraints of
 this ADR.
@@ -1133,7 +1130,8 @@ Rejected because the Object Runtime must remain storage-independent.
 The accepted ADRs are aligned with the implemented boundaries as follows:
 
 - `RuntimeResolver` resolves Runtime Object Types and does not create instances.
-- `ObjectCreator` creates `ObjectInstance` values from a resolved `CatalogRuntime` and explicit `ObjectContext`.
+- ObjectCreator creates ObjectInstance values from a resolved RuntimeObjectType and explicit ObjectContext.
+- CatalogRuntime is the concrete Runtime Object Type implementation used by the current Phase 4 catalog vertical slice. It is not the generic Object Runtime dependency.
 - Object Identity uses the existing immutable ULID-backed `Identifier`.
 - Object Lifecycle is `CREATED → ACTIVE → DISPOSED` and is independent of Configuration Lifecycle.
 - Object Context preserves the explicit Phase 3 configuration snapshot.

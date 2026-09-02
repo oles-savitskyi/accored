@@ -116,32 +116,52 @@ Phase 1  Platform Runtime Foundation
     ↓
 Phase 2  Metadata → Runtime
     ↓
-Phase 3  Catalog Runtime
+Phase 3  Configuration & Runtime Resolution
     ↓
-Phase 4  First Document
+Phase 4  Object Runtime
     ↓
-Phase 5  Posting → Register
+Phase 5  Storage & Persistence Boundary
     ↓
-Phase 6  Register Query & Totals
+Phase 6  Posting → Register
     ↓
-Phase 7  Valuation
+Phase 7  Register Query & Totals
     ↓
-Phase 8  Reporting
+Phase 8  Valuation
     ↓
-Phase 9  Processing
+Phase 9  Reporting
     ↓
-Phase 10 Security
+Phase 10 Processing
     ↓
-Phase 11 Integration
+Phase 11 Security
     ↓
-Phase 12 Standard MVP
+Phase 12 Integration
     ↓
-Phase 13 Hardening & Release
+Phase 13 Standard MVP
+    ↓
+Phase 14 Hardening & Release
 ```
 
 The sequence is dependency-oriented.
 
 Some phases may overlap once their required interfaces are stable.
+
+The first four phases establish the reusable Platform execution model:
+
+Configuration
+    ↓
+Metadata
+    ↓
+Runtime Configuration Context
+    ↓
+Metadata Resolution
+    ↓
+Runtime Object Type Resolution
+    ↓
+Object Instance Creation
+    ↓
+Object Runtime
+
+Later phases extend this foundation with persistence, accounting, reporting, processing, security and integration capabilities.
 
 ---
 
@@ -372,168 +392,304 @@ Phase 2 is complete when:
 
 ---
 
-# 7. Phase 3 — Catalog Runtime
+# 7. Phase 3 — Configuration & Runtime Resolution
 
 ## Objective
 
-Implement the generic catalog capability and use it to create the first Standard Configuration catalog.
+ Establish the runtime configuration boundary required to resolve metadata-defined runtime types within an explicit active configuration context. Phase 3 connects the configuration lifecycle established in Phase 2 with executable runtime resolution.
 
----
+ ---
 
-## Platform Scope
+ ## Scope
 
-Implement the minimum Catalog Runtime required for:
+ Implement the minimum runtime configuration infrastructure required for:
 
-* catalog definition;
-* catalog records;
-* identity;
-* required system fields;
-* parent-child hierarchy;
-* folders;
-* CRUD;
-* persistence;
-* query;
-* basic validation.
+ * active configuration publication;
+ * immutable runtime configuration context;
+ * metadata resolution from the active configuration;
+ * runtime object type resolution;
+ * explicit configuration context propagation;
+ * separation between metadata resolution and runtime object type resolution.
 
----
+ ---
 
-## Standard Configuration Scope
+ ## Target Flow
 
-Implement:
-
-**Assortment**
-
-as the first metadata-defined Standard Configuration catalog.
-
----
-
-## Vertical Slice #1
-
-```text
-Assortment Definition
-        ↓
-Metadata
-        ↓
-Catalog Runtime
-        ↓
-Storage
-        ↓
-Assortment Record
-        ↓
-Query
+ ```text
+ Validated Configuration
+  ↓
+ Active Configuration
+  ↓
+ RuntimeConfigurationContext
+  ↓
+ MetadataResolver
+  ↓
+ RuntimeResolver
+  ↓
+ Runtime Object Type
 ```
 
----
+## Architectural Goal
+
+Runtime consumers must operate against an explicit immutable runtime configuration snapshot.
+
+Runtime resolution must not depend on global mutable configuration state.
+
+Metadata resolution and Runtime Object Type resolution remain separate responsibilities.
 
 ## Deliverables
-
-Platform:
-
-* Catalog Runtime;
-* catalog persistence;
-* catalog query support;
-* hierarchy support.
-
-Standard:
-
-* Assortment definition;
-* Assortment metadata;
-* initial forms/query representation as required.
-
-Tests:
-
-* catalog unit tests;
-* metadata integration tests;
-* Assortment vertical test.
-
----
+ * active configuration model;
+ * runtime configuration context;
+ * metadata resolver;
+ * runtime resolver;
+ * runtime object type contract;
+ * public configuration/runtime boundaries;
+ * tests.
 
 ## Acceptance Criteria
 
 Phase 3 is complete when:
 
-1. Assortment is defined through configuration metadata;
-2. the generic Catalog Runtime executes it;
-3. records can be created;
-4. records can be updated;
-5. records can be queried;
-6. hierarchy works where applicable;
-7. persistence works;
-8. no Assortment-specific logic exists inside generic Catalog Runtime;
-9. the first vertical slice passes.
+1. a validated configuration can become active;
+2. an immutable RuntimeConfigurationContext can be created;
+3. metadata can be resolved through the active runtime configuration;
+4. Runtime Object Types can be resolved from metadata;
+5. Runtime resolution operates through the explicit configuration context;
+6. MetadataResolver and RuntimeResolver remain separate concerns;
+7. runtime consumers do not require direct access to MetadataRegistry;
+8. configuration context boundaries are enforced by tests;
+9. all Phase 3 quality gates are satisfied.
+
+## Not Included
+
+This phase does not implement:
+
+ * generic object instance creation;
+ * object lifecycle;
+ * object state;
+ * object registry;
+ * persistence;
+ * Storage Provider integration;
+ * document runtime;
+ * posting;
+ * register operations.
 
 ---
 
-# 8. Phase 4 — First Document
+# 8. Phase 4 — Object Runtime
 
 ## Objective
 
-Implement the generic Document Runtime and create the first operational Standard Configuration document.
+Establish the generic Object Runtime boundary that creates and manages executable object instances from resolved Runtime Object Types within an explicit Runtime Configuration Context. Phase 4 is the first phase in which the platform creates a concrete Object Instance independently of any future persistence mechanism.
 
 ---
 
 ## Platform Scope
 
-Implement the minimum document infrastructure required for:
-
-* document definition;
-* document identity;
-* requisites;
-* tabular parts;
-* lifecycle;
-* numbering;
-* persistence;
-* posting integration boundary.
-
----
-
-## Standard Configuration Scope
-
-Introduce the first operational document.
-
-Initial candidate:
-
-**Goods Receipt**
-
-The exact final name may be adjusted when the Standard Configuration model is formalized.
+Implement the minimum generic Object Runtime required for:
+* Object Identity;
+* Runtime Object Type dependency;
+* Object Instance;
+* Object State;
+* Object Context;
+* object creation boundary;
+* object lifecycle;
+* explicit runtime configuration context propagation.
 
 ---
 
-## Vertical Slice #2
-
+## Architectural Flow
 ```text
-Assortment
-      ↓
-Goods Receipt
-      ↓
-Document Runtime
-      ↓
-Persistence
+RuntimeConfigurationContext
+ ↓
+MetadataResolver
+ ↓
+RuntimeResolver
+ ↓
+Runtime Object Type
+ ↓
+Object Creation Boundary
+ ↓
+Object Instance
+ ↓
+Identity / State / Context
+ ↓
+Object Lifecycle
 ```
 
-At this stage posting may exist only as an integration boundary.
+## Object Type Boundary
 
-The actual register movement generation belongs to the next phase.
+The Object Runtime depends on the architectural RuntimeObjectType contract.
 
----
+It must not depend on a specific concrete runtime implementation.
+
+For the current catalog vertical slice:
+
+Catalog Metadata
+        ↓
+RuntimeResolver
+        ↓
+CatalogRuntime
+        ↓
+ObjectCreator
+        ↓
+Assortment ObjectInstance
+
+CatalogRuntime is a concrete implementation of RuntimeObjectType, not the generic Object Runtime itself.
+
+Future runtime types may include other object categories without introducing independent object-runtime frameworks.
+
+## Object Creation
+
+Object instance creation is owned by the Object Runtime creation boundary.
+
+The creation boundary:
+
+* receives a resolved Runtime Object Type;
+* receives an explicit Object Context;
+* assigns Object Identity;
+* creates the Object Instance;
+* establishes the initial Object State;
+* preserves the Runtime Configuration Context snapshot.
+
+RuntimeResolver resolves Runtime Object Types but does not create Object Instances.
+
+## Object Lifecycle
+
+The minimum Phase 4 lifecycle is:
+
+CREATED
+   ↓
+ACTIVE
+   ↓
+DISPOSED
+
+Lifecycle is owned by Object Runtime and is independent of Configuration Lifecycle.
+
+## Object State
+
+For the minimum Phase 4 implementation, Object State is limited to runtime lifecycle state.
+
+Phase 4 does not introduce a generalized mutable business-state model.
+
+Business values, metadata-defined attributes, dirty tracking, persistence state, and other mutable object data remain outside the Phase 4 implementation scope.
+
+## Storage Boundary
+
+Persistence is outside the scope of Phase 4.
+
+Phase 4 establishes the runtime representation independently of physical storage.
+
+Future Storage Architecture will define:
+
+* persistent representation;
+* runtime-to-storage mapping;
+* loading and persistence boundaries;
+* storage provider interaction.
+
+Object creation in Phase 4 must not imply automatic persistence.
+
+Standard Configuration Vertical Slice
+
+The Phase 4 vertical slice uses the existing Assortment catalog:
+
+Assortment Definition
+        ↓
+Configuration Metadata
+        ↓
+RuntimeConfigurationContext
+        ↓
+MetadataResolver
+        ↓
+RuntimeResolver
+        ↓
+CatalogRuntime
+        ↓
+ObjectCreator
+        ↓
+Assortment ObjectInstance
+
+The purpose of this slice is to demonstrate that a metadata-defined object can be resolved and instantiated through the generic Object Runtime.
 
 ## Acceptance Criteria
 
 Phase 4 is complete when:
 
-1. a document can be defined through metadata;
-2. document instances can be created;
-3. requisites work;
-4. tabular parts work;
-5. document lifecycle works;
-6. documents can be persisted;
-7. document numbering works according to the selected strategy;
-8. Goods Receipt uses generic Document Runtime;
-9. document-specific runtime is not hard-coded into Platform.
+1. Object Identity is immutable and independent of configuration identity;
+2. Object Instance is distinct from Runtime Object Type;
+3. Object Runtime depends on the RuntimeObjectType contract;
+4. RuntimeResolver resolves types but does not create instances;
+5. ObjectCreator provides the object creation boundary;
+6. Object Context preserves an explicit RuntimeConfigurationContext snapshot;
+7. Object lifecycle follows the defined lifecycle transitions;
+8. Object State remains independent of persistence;
+9. no Storage implementation is required for object creation;
+10. the Assortment vertical slice creates a concrete Object Instance;
+11. generic Object Runtime boundaries are enforced by tests;
+12. Phase 3 invariants remain intact.
 
 ---
 
-# 9. Phase 5 — Posting → Register
+# 9. Phase 5 — Storage & Persistence Boundary
+
+## Objective
+
+Establish the persistence boundary between Runtime Objects and physical Storage without exposing storage implementation details to Runtime.
+
+## Scope
+
+Implement the minimum Storage capability required to:
+
+* represent persistent object data;
+* map Runtime Object state to persistent representation;
+* load persisted objects into Runtime;
+* persist object changes through an explicit Storage boundary;
+* preserve Runtime independence from the physical storage provider.
+
+## Architectural Goal
+
+Runtime and Storage remain separate architectural concerns.
+
+Runtime Object
+      ↕
+Storage Boundary
+      ↕
+Persistent Representation
+      ↕
+Storage Provider
+
+Runtime must not depend on:
+
+* SQL schemas;
+* database-specific APIs;
+* EAV implementation details;
+* physical table layout;
+* Storage Provider-specific identifiers.
+
+## Acceptance Criteria
+
+Phase 5 is complete when:
+
+1. Runtime Objects can be loaded through the Storage boundary;
+2. Runtime Objects can be persisted through the Storage boundary;
+3. Runtime remains independent of the concrete Storage Provider;
+4. persistent representation is distinct from Runtime Object representation;
+5. Storage-specific implementation details do not leak into Runtime;
+6. persistence behavior is covered by tests.
+
+## Not Included
+
+This phase does not implement:
+
+* posting;
+* register movements;
+* valuation;
+* reporting;
+* document-specific accounting logic.
+
+---
+
+# 10. Phase 6 — Posting
 
 ## Objective
 
@@ -593,7 +749,8 @@ Phase 5 is complete when:
 
 ---
 
-# 10. Phase 6 — Register Query & Totals
+
+# 11. Phase 7 — Register Query & Totals
 
 ## Objective
 
@@ -654,7 +811,7 @@ Phase 6 is complete when:
 
 ---
 
-# 11. Phase 7 — Valuation
+# 12. Phase 8 — Valuation
 
 ## Objective
 
@@ -726,7 +883,7 @@ Phase 7 is complete when:
 
 ---
 
-# 12. Phase 8 — Reporting
+# 13. Phase 9 — Reporting
 
 ## Objective
 
@@ -790,7 +947,7 @@ Phase 8 is complete when:
 
 ---
 
-# 13. Phase 9 — Processing
+# 14. Phase 10 — Processing
 
 ## Objective
 
@@ -840,7 +997,7 @@ Phase 9 is complete when:
 
 ---
 
-# 14. Phase 10 — Security
+# 15. Phase 11 — Security
 
 ## Objective
 
@@ -882,7 +1039,7 @@ Phase 10 is complete when:
 
 ---
 
-# 15. Phase 11 — Integration
+# 16. Phase 12 — Integration
 
 ## Objective
 
@@ -916,7 +1073,7 @@ Phase 11 is complete when:
 
 ---
 
-# 16. Phase 12 — Standard MVP
+# 17. Phase 13 — Standard MVP
 
 ## Objective
 
@@ -1010,7 +1167,7 @@ The scenario must work without manually modifying Platform internals.
 
 ---
 
-# 17. Phase 13 — Hardening & Release
+# 18. Phase 14 — Hardening & Release
 
 ## Objective
 
@@ -1077,53 +1234,57 @@ The release candidate should:
 
 ---
 
-# 18. Vertical Slice Map
+# 19. Vertical Slice Map
 
 The roadmap can be summarized by the following vertical slices.
 
-| Slice | Scenario                  | Main Architecture Validated  |
-| ----- | ------------------------- | ---------------------------- |
-| VS-1  | Assortment                | Metadata → Runtime → Storage |
-| VS-2  | Goods Receipt             | Document Runtime             |
-| VS-3  | Goods Receipt → Inventory | Posting                      |
-| VS-4  | Inventory Balance         | Register + Totals            |
-| VS-5  | Inventory Valuation       | Valuation                    |
-| VS-6  | Inventory Report          | Reporting                    |
-| VS-7  | Standard Processing       | Processing                   |
-| VS-8  | Secured Operation         | Security                     |
-| VS-9  | External Operation        | Integration                  |
-| VS-10 | Complete MVP              | Full architecture lifecycle  |
+| Slice | Scenario                   | Main Architecture Validated                         |
+| ----- | -------------------------- | --------------------------------------------------- |
+| VS-1  | Assortment Object Creation | Configuration → Metadata → Runtime → Object Runtime |
+| VS-2  | Assortment Persistence     | Object Runtime → Storage                            |
+| VS-3  | Goods Receipt              | Document Runtime                                    |
+| VS-4  | Goods Receipt → Inventory  | Posting                                             |
+| VS-5  | Inventory Balance          | Register + Totals                                   |
+| VS-6  | Inventory Valuation        | Valuation                                           |
+| VS-7  | Inventory Report           | Reporting                                           |
+| VS-8  | Standard Processing        | Processing                                          |
+| VS-9  | Secured Operation          | Security                                            |
+| VS-10 | External Operation         | Integration                                         |
+| VS-11 | Complete MVP               | Full architecture lifecycle                         |
 
 ---
 
-# 19. Milestone Model
+# 20. Milestone Model
 
 Each major phase should produce a milestone.
 
 ```text
-M0  Development Baseline
-M1  Runtime Foundation
-M2  Metadata Runtime
-M3  First Catalog
-M4  First Document
-M5  Posting
-M6  Register
-M7  Valuation
-M8  Reporting
-M9  Processing
-M10 Security
-M11 Integration
-M12 Standard MVP
-M13 Release Candidate
+M0 Development Baseline
+M1 Runtime Foundation
+M2 Metadata Runtime
+M3 Configuration & Runtime Resolution
+M4 Object Runtime
+M5 Storage Boundary
+M6 Posting
+M7 Register
+M8 Valuation
+M9 Reporting
+M10 Processing
+M11 Security
+M12 Integration
+M13 Standard MVP
+M14 Release Candidate
 ```
 
 Milestones are cumulative.
 
 Each milestone should preserve the working state of previous milestones.
 
+The catalog and document capabilities are introduced as concrete Runtime Object Type implementations and vertical slices rather than as independent architectural foundations.
+
 ---
 
-# 20. Dependency Graph
+# 21. Dependency Graph
 
 The main dependency chain is:
 
@@ -1171,7 +1332,7 @@ Security and Integration may begin earlier if their interfaces are needed by imp
 
 ---
 
-# 21. Parallel Work
+# 22. Parallel Work
 
 Once the core Platform boundaries become stable, selected work can proceed in parallel.
 
@@ -1191,7 +1352,7 @@ Shared interfaces should be stabilized before multiple subsystems depend on them
 
 ---
 
-# 22. Phase Completion Rules
+# 23. Phase Completion Rules
 
 A phase should not automatically be marked complete because all planned coding tasks are finished.
 
@@ -1215,7 +1376,7 @@ If an architectural question remains unresolved, the phase should be marked acco
 
 ---
 
-# 23. Handling Discovered Problems
+# 24. Handling Discovered Problems
 
 During implementation, discovered issues should be classified as:
 
@@ -1239,29 +1400,29 @@ The roadmap itself should not be used to bypass architecture governance.
 
 ---
 
-# 24. What Must Not Happen
+# 25. What Must Not Happen
 
 The roadmap explicitly prohibits several implementation patterns.
 
-## 24.1 Building the Entire Platform Before Testing It
+## 25.1 Building the Entire Platform Before Testing It
 
 The Platform must be validated incrementally.
 
 ---
 
-## 24.2 Building Standard Configuration Independently
+## 25.2 Building Standard Configuration Independently
 
 Standard Configuration must not become an alternative implementation of Platform capabilities.
 
 ---
 
-## 24.3 Implementing All Catalogs First
+## 25.3 Implementing All Catalogs First
 
 Catalog breadth is less valuable than a complete vertical slice.
 
 ---
 
-## 24.4 Implementing UI Before Runtime Contracts
+## 25.4 Implementing UI Before Runtime Contracts
 
 Presentation should consume stable runtime behavior.
 
@@ -1269,13 +1430,13 @@ The first implementation should not hide unresolved runtime architecture behind 
 
 ---
 
-## 24.5 Optimizing Before Measuring
+## 25.5 Optimizing Before Measuring
 
 Performance work should be supported by benchmarks and profiling.
 
 ---
 
-## 24.6 Adding Business Logic to Platform for Convenience
+## 25.6 Adding Business Logic to Platform for Convenience
 
 If a Standard Configuration feature requires special handling, first determine whether:
 
@@ -1287,7 +1448,7 @@ Hard-coding the business rule into Platform should be the last option.
 
 ---
 
-# 25. First Implementation Target
+# 26. First Implementation Target
 
 The current implementation sequence has reached Phase 4:
 
@@ -1295,17 +1456,24 @@ The current implementation sequence has reached Phase 4:
 Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4
 ```
 
-Phase 4 establishes the generic Object Runtime boundary between Runtime Object Type resolution and future persistence.
+Phase 4 establishes the generic Object Runtime boundary between Runtime Object Type resolution and Object Instance creation.
 
-resulting in:
+The current architectural flow is:
 
-> **A metadata-defined Assortment catalog running on the generic AcCoreD Platform.**
+RuntimeConfigurationContext
+        ↓
+MetadataResolver
+        ↓
+RuntimeResolver
+        ↓
+Runtime Object Type
+        ↓
+ObjectCreator
+        ↓
+ObjectInstance
 
-This is the first concrete proof that the architecture has successfully transitioned into implementation.
+The current concrete catalog vertical slice is:
 
-The current Phase 4 target flow is:
-
-```text
 Assortment Definition
         ↓
 Configuration Metadata
@@ -1321,23 +1489,28 @@ CatalogRuntime
 ObjectCreator
         ↓
 Assortment ObjectInstance
-```
 
-Physical Storage remains outside this Phase 4 flow.
+Here CatalogRuntime is the current concrete implementation of the generic RuntimeObjectType contract.
+
+It is not the generic Object Runtime itself.
+
+Physical Storage remains outside the Phase 4 implementation boundary.
+
+The purpose of the current implementation is to prove that a metadata-defined object can be resolved and instantiated through the generic Platform runtime without introducing object-type-specific runtime frameworks.
 
 The first implementation should deliberately remain small.
 
 Its purpose is not to make Standard Edition useful yet.
 
-Its purpose is to prove that the fundamental mechanism works.
-
+Its purpose is to prove that the fundamental runtime mechanism works.
 ---
 
-# 26. Transition From Planning to Implementation
+# 27. Transition From Planning to Implementation
 
-The planning stage is considered complete when the following documents exist and are mutually consistent:
+The planning stage has transitioned into active implementation.
 
-```text
+The architectural baseline is:
+
 architecture-core-3.0
         │
         ▼
@@ -1355,46 +1528,63 @@ MVP_DEFINITION.md   CONFIGURATION_DEFINITION_MODEL.md
         │              │
         └──────┬───────┘
                ▼
-        First Implementation
-```
+        Active Implementation
 
-The next implementation work should begin only after the boundaries of the Configuration Definition Model are sufficiently clear.
+The roadmap is now used as an implementation coordination document rather than as a prerequisite for beginning implementation.
+
+When implementation reveals an architectural limitation, the issue must be handled through the architecture governance process described in this roadmap and the relevant ADRs.
 
 ---
 
-# 27. Initial Implementation Order
+# 28. Current Implementation Order
 
-The practical order is therefore:
+The practical implementation order is:
 
-### Step 1
+Step 1
 
-Establish repository baseline.
+Establish repository and development baseline.
 
-### Step 2
+Step 2
 
 Establish Platform runtime foundation.
 
-### Step 3
+Step 3
 
-Implement metadata registration and resolution.
+Implement metadata registration, validation and runtime binding.
 
-### Step 4
+Step 4
 
-Implement generic Catalog Runtime.
+Establish Configuration Lifecycle → Active Configuration → Runtime Configuration Context.
 
-### Step 5
+Step 5
 
-Define and run Assortment.
+Implement MetadataResolver and RuntimeResolver.
 
-### Step 6
+Step 6
 
-Validate the first vertical slice.
+Establish the generic RuntimeObjectType contract.
 
-Only after this point should we proceed to the first document implementation.
+Step 7
+
+Implement the generic Object Runtime creation boundary.
+
+Step 8
+
+Create an Assortment Object Instance through the concrete CatalogRuntime vertical slice.
+
+Step 9
+
+Validate Object Identity, Object State, Object Context and Object Lifecycle.
+
+Step 10
+
+Establish the Storage & Persistence Boundary.
+
+Only after the Runtime and Storage boundaries are stable should implementation proceed to operational documents and accounting flows.
 
 ---
 
-# 28. Roadmap Success Criteria
+# 29. Roadmap Success Criteria
 
 The roadmap is successful if it leads to a system where:
 
@@ -1416,7 +1606,7 @@ The goal is to establish a repeatable mechanism for building additional configur
 
 ---
 
-# 29. Long-Term Extension
+# 30. Long-Term Extension
 
 After the first Standard Edition release, the same implementation model should support:
 
@@ -1438,7 +1628,7 @@ This is the final validation of the architectural strategy.
 
 ---
 
-# 30. Summary
+# 31. Summary
 
 The implementation roadmap follows one central idea:
 
@@ -1449,13 +1639,17 @@ The sequence is:
 ```text
 Repository
     ↓
-Runtime
+Runtime Foundation
     ↓
 Metadata
     ↓
-Catalog
+Configuration & Runtime Resolution
     ↓
-Document
+Object Runtime
+    ↓
+Storage
+    ↓
+Document Runtime
     ↓
 Posting
     ↓
@@ -1476,14 +1670,14 @@ Standard MVP
 Hardening
 ```
 
-The first meaningful implementation milestone is not a large Standard Configuration.
+The first meaningful implementation milestone is:
 
-It is:
+A metadata-defined Assortment Object Instance created through the generic Object Runtime.
 
-> **A metadata-defined Assortment running through the generic Platform runtime.**
+The first persistence milestone is:
+
+A Runtime Object mapped through the Storage Boundary to a persistent representation.
 
 The first complete business milestone is:
 
-> **Master Data → Document → Posting → Register → Valuation → Report.**
-
-This sequence provides progressively stronger evidence that the AcCoreD architecture is not only theoretically coherent but implementable as a reusable application platform.
+Master Data → Document → Posting → Register → Valuation → Report.

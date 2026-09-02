@@ -295,6 +295,10 @@ Object Instance.
 For the minimum Phase 4 implementation, Object State represents the object's
 runtime lifecycle state.
 
+Accordingly, Phase 4 does not introduce a generalized mutable business-state model inside ObjectInstance.
+
+The lifecycle state model is sufficient for the Phase 4 runtime contract. Business values, metadata-defined attributes, dirty tracking, persistence state, and other mutable object data remain concerns of later phases.
+
 Object Runtime State is distinct from:
 
 - persistent state;
@@ -1258,7 +1262,8 @@ Phase 4 establishes the following architectural principle:
 > Metadata defines what an object is.
 > Runtime resolves how that object type is executed.
 > Object Runtime owns the lifetime and runtime state of an object instance.
-> Storage persists object state.
+> Future Storage Architecture will define how Object State is persisted and mapped to a persistent representation.
+Persistence is outside the scope of Phase 4 implementation. Object Runtime does not depend on persistence.
 > Configuration owns configuration lifecycle.
 
 The canonical boundary is therefore:
