@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from pathlib import Path
+
 import pytest
 
 from accore.platform.storage import (
@@ -5,13 +8,33 @@ from accore.platform.storage import (
     StorageNotFoundError,
     StorageProvider,
 )
+from accore.platform.storage.filesystem import FilesystemStorageProvider
 
 from .support import InMemoryStorageProvider
 
+ProviderFactory = Callable[[], StorageProvider]
+
+
+@pytest.fixture(
+    params=[
+        InMemoryStorageProvider,
+        "filesystem",
+    ],
+    ids=["in-memory", "filesystem"],
+)
+def provider_factory(
+    request: pytest.FixtureRequest,
+    tmp_path: Path,
+) -> ProviderFactory:
+    if request.param == "filesystem":
+        return lambda: FilesystemStorageProvider(tmp_path)
+
+    return request.param
+
 
 @pytest.fixture
-def provider() -> StorageProvider:
-    return InMemoryStorageProvider()
+def provider(provider_factory: ProviderFactory) -> StorageProvider:
+    return provider_factory()
 
 
 def test_put_then_get_returns_payload(
