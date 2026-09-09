@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from accore.platform.object.context import ObjectContext
 from accore.platform.object.instance import ObjectInstance
 from accore.platform.persistence.objects import PersistentObject
+from accore.platform.runtime.business_state import BusinessStateSnapshot
+from accore.platform.runtime.durable_field_state import DurableFieldState
+from accore.platform.runtime.durable_reference_state import DurableReferenceState
+from accore.platform.runtime.durable_state import RuntimeDurableState
+from accore.platform.runtime.durable_system_field_state import (
+    DurableSystemFieldState,
+)
 from accore.platform.runtime.resolution import RuntimeResolver
 
 
@@ -10,13 +19,16 @@ class PersistentObjectMappingError(RuntimeError):
     """Raised when a persistent object cannot be mapped to runtime safely."""
 
 
-class PersistentObjectHydrator:
-    """Hydrate runtime object structure from a persistent object representation.
+@dataclass(frozen=True, slots=True)
+class HydratedRuntimeObject:
+    """Runtime object instance together with its durable runtime state."""
 
-    Step 11 intentionally supports structural hydration only. Persistent field,
-    business-state, and system-field materialization into Runtime are deferred
-    until the Runtime Object Model exposes an explicit durable-state surface.
-    """
+    instance: ObjectInstance
+    durable_state: RuntimeDurableState
+
+
+class PersistentObjectHydrator:
+    """Hydrate runtime object structure and durable state from persistence."""
 
     def __init__(self, runtime_resolver: RuntimeResolver) -> None:
         self._runtime_resolver = runtime_resolver
@@ -25,16 +37,8 @@ class PersistentObjectHydrator:
         self,
         persistent: PersistentObject,
         context: ObjectContext,
-    ) -> ObjectInstance:
-        """Hydrate a persistent object into a runtime object instance."""
-        state = persistent.state
-        if state.fields or state.system_fields or state.business_state is not None:
-            raise PersistentObjectMappingError(
-                "Persistent durable state cannot be hydrated into ObjectInstance "
-                "because the current Runtime Object Model has no explicit durable "
-                "state surface."
-            )
-
+    ) -> HydratedRuntimeObject:
+        """Hydrate a persistent object into runtime representations."""
         try:
             runtime_type = self._runtime_resolver.resolve(
                 context.runtime_context,
@@ -51,11 +55,27 @@ class PersistentObjectHydrator:
                 "persistent object type identity."
             )
 
-        return ObjectInstance(
+        instance = ObjectInstance(
             identity=persistent.identity,
             object_type=runtime_type,
             context=context,
         )
 
+        durable_state = RuntimeDurableState(
+            fields=DurableFieldState(dict(persistent.state.fields.items())),
+            references=DurableReferenceState(dict(persistent.state.references.items())),
+            business_state=BusinessStateSnapshot(dict(persistent.state.business_state.items())),
+            system_fields=DurableSystemFieldState(dict(persistent.state.system_fields.items())),
+        )
 
-__all__ = ["PersistentObjectHydrator", "PersistentObjectMappingError"]
+        return HydratedRuntimeObject(
+            instance=instance,
+            durable_state=durable_state,
+        )
+
+
+__all__ = [
+    "HydratedRuntimeObject",
+    "PersistentObjectHydrator",
+    "PersistentObjectMappingError",
+]
