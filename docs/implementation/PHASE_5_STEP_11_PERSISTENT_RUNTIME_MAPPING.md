@@ -6,7 +6,7 @@
 **Phase:** 5 — Storage & Persistence Boundary
 **Step:** 11
 **Version:** 1.0
-**Date:** 2026-09-07
+**Date:** 2026-09-10
 
 ---
 
@@ -160,7 +160,7 @@ The current `ObjectInstance` model does not itself contain an explicit persisten
 
 Therefore materialization must not invent a convention that extracts persistent fields from arbitrary Python attributes.
 
-A future materialization implementation must receive or use an explicitly defined source of durable state.
+The materialization implementation receives the explicitly defined `RuntimeDurableState` as its authoritative source of durable state.
 
 Consequently:
 
@@ -801,7 +801,7 @@ if its implementation assumes that arbitrary runtime attributes constitute persi
 
 Materialization requires an explicit durable-state source.
 
-The future materialization contract must therefore define where the persistent field values originate.
+The materialization contract therefore defines `RuntimeDurableState` as the authoritative source of persistent field values.
 
 This preserves the distinction between:
 
@@ -1229,8 +1229,8 @@ This closes the semantic boundary between durable persistence representation and
 
 # 34. Implemented Python API
 
-The Step 11 implementation currently provides the following public implementation
-types in `accore.platform.persistence.mapping`:
+The Step 11 implementation provides the following mapping types in
+`accore.platform.persistence.mapping`:
 
 ```python
 class PersistentObjectMappingError(RuntimeError):
@@ -1245,12 +1245,13 @@ class PersistentObjectHydrator:
         self,
         persistent: PersistentObject,
         context: ObjectContext,
-    ) -> ObjectInstance:
+    ) -> HydratedRuntimeObject:
         ...
 ```
 
-The implementation provides structural hydration from PersistentObject
-to ObjectInstance.
+The implementation provides explicit hydration from `PersistentObject` to
+`HydratedRuntimeObject`, preserving the separation between `ObjectInstance`
+and `RuntimeDurableState`.
 
 The hydrator:
 
@@ -1268,21 +1269,21 @@ The mapping implementation is currently located in:
 
 src/accore/platform/persistence/mapping.py
 
-The mapping types are intentionally not exported from
-accore.platform.persistence.__init__ at this stage. Public API exposure
-remains a separate API decision and is not required for the Step 11 mapping
-implementation itself.
+The public persistence API exports the materialization mapping types and
+the persistence mapping error contract. Runtime mapping remains explicit
+and technology-independent.
 
 # 35. Validation
 
-Step 11 implementation has been validated against the complete project
-quality gate.
+The Step 11 implementation is part of the completed Phase 5 persistence
+quality gate. The final repository validation after subsequent persistence
+work is:
 
 ## Tests
 
 ```text
 pytest
-354 passed in 2.46s
+711 passed in 4.72s
 ```
 
 ### Static Analysis
@@ -1295,23 +1296,19 @@ All checks passed!
 ### Formatting
 
 ```text
-black .
-All done! ✨ 🍰 ✨
-130 files left unchanged.
-
 black --check .
-All done! ✨ 🍰 ✨
-130 files would be left unchanged.
+All done! 152 files would be left unchanged.
 ```
-
 
 ### Type Checking
 
 ```text
 mypy src
-Success: no issues found in 68 source files
+Success: no issues found in 79 source files
 ```
 
+These final project-wide results supersede the earlier Step 11 checkpoint
+values recorded before Steps 12 and materialization were completed.
 
 ## Step 11 Acceptance Criteria
 
@@ -1328,4 +1325,6 @@ Success: no issues found in 68 source files
 * [x]  Mapping does not perform persistence orchestration.
 * [x]  Mapping does not become a migration or validation engine.
 * [x]  Full project quality gate passes.
+* [x]  The mapping API is integrated with the final persistence public API.
+* [x]  Materialization is implemented as the reverse explicit mapping direction.
 

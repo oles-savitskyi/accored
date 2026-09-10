@@ -1,10 +1,10 @@
 # Phase 5 — Step 12: Runtime Durable State & Persistent Materialization Contract
 
-**Status:** Architecture Defined — Implementation Not Started
+**Status:** Implemented — Final
 **Phase:** 5 — Persistence Architecture
 **Step:** 12
 **Version:** 3.0
-**Date:** 2026-09-08
+**Date:** 2026-09-10
 
 ---
 
@@ -1897,7 +1897,7 @@ Rejected as the final semantic architecture contract because it cannot express:
 
 # 60. Implementation Gate
 
-Implementation of Step 12 must not begin until the following architecture gates are satisfied.
+The Step 12 implementation gates have been satisfied. They are retained here as the final acceptance record for the completed implementation.
 
 ## P5-IG1 — Runtime Durable State Model
 
@@ -1912,7 +1912,7 @@ Required:
 * business state;
 * durable system fields.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -1931,7 +1931,7 @@ Required base kinds:
 * Structured;
 * Collection.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -1950,7 +1950,7 @@ including:
 * explicit NULL;
 * Metadata identity.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -1971,7 +1971,7 @@ including:
 * ordered collections;
 * MISSING semantics.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -1993,7 +1993,7 @@ with:
 * MISSING semantics;
 * no implicit initial-state substitution.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2013,7 +2013,7 @@ with explicit exclusion of:
 * locking;
 * cache/loading state.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2023,7 +2023,7 @@ Define/verify the persistence-side semantic representation corresponding to `Run
 
 It must represent the same durable semantics without importing Runtime concepts.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2045,7 +2045,7 @@ ObjectInstance
 
 by Object Identity.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2061,7 +2061,7 @@ PersistentObjectState
 
 without reading arbitrary `ObjectInstance` attributes.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2077,7 +2077,7 @@ Mapping must validate:
 * durable value compatibility;
 * system-field identity.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2099,7 +2099,7 @@ PersistentObject
 
 preserves durable semantic equivalence.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2117,7 +2117,7 @@ Tests must prove that changes to:
 
 do not become durable state.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2146,7 +2146,7 @@ VALUE
 
 with NULL rejected.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2154,7 +2154,7 @@ Status: **OPEN**
 
 A runtime object containing arbitrary Python attributes must not cause those attributes to appear in materialized persistent state.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2162,7 +2162,7 @@ Status: **OPEN**
 
 Tests must prove that materialization/hydration preserves Object Identities without resolving them into `ObjectInstance` objects.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2176,7 +2176,7 @@ initial_state
 
 is applied only by object creation semantics and is never substituted by Mapping during hydration.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2191,7 +2191,7 @@ Determine the intended public API exposure for:
 
 No implementation type should become public merely because it exists internally.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
@@ -2210,13 +2210,13 @@ must pass.
 
 Additional targeted semantic tests must cover all P5-DUR, P5-FLD, P5-REF, P5-BSS, P5-SYS and P5-MAT invariants relevant to the implemented scope.
 
-Status: **OPEN**
+Status: **CLOSED**
 
 ---
 
 # 61. Implementation Sequence
 
-Implementation should proceed in the following order:
+The implementation sequence was completed in the following order:
 
 ```text
 1. DurableValue semantic contract
@@ -2280,7 +2280,43 @@ Step 12 implementation is complete when:
 
 ---
 
-# 63. Final Principle
+# 63. Final Validation
+
+Step 12 and its materialization sub-sequence are complete. The final project-wide quality gate is:
+
+```text
+pytest
+711 passed in 4.72s
+
+ruff check .
+All checks passed!
+
+black --check .
+All done! 152 files would be left unchanged.
+
+mypy src
+Success: no issues found in 79 source files
+```
+
+The completed implementation covers:
+
+* Runtime Durable State;
+* explicit hydration mapping;
+* explicit materialization mapping;
+* semantic round-trip preservation;
+* runtime isolation;
+* MISSING / NULL / VALUE preservation;
+* reference identity preservation without graph traversal;
+* public persistence API exposure;
+* explicit materialization failure semantics.
+
+The materialization boundary is implemented by `PersistentObjectMaterializer`;
+`PersistentObjectMaterializationError` is part of the public persistence error
+contract.
+
+---
+
+# 64. Final Principle
 
 > **`RuntimeDurableState` is the Runtime semantic representation of an object's durable state. It is independent from `ObjectInstance`, Persistence and Storage, contains only explicitly classified durable semantics, and is converted to and from `PersistentObjectState` exclusively through an explicit mapping boundary.**
 
