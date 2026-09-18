@@ -1,0 +1,636 @@
+# Phase 6 — Step 1: Posting Architecture Boundary
+
+## 1. Purpose
+
+This step defines the architectural boundary of the Posting subsystem.
+
+The purpose is to establish the responsibilities and relationships of:
+
+1. Posting Engine;
+2. Posting Context;
+3. Posting Handler;
+4. MovementSet;
+5. Movement Service;
+6. Register Posting Contract.
+
+This step defines architecture and contracts at the semantic level.
+
+It does not define Python interfaces, concrete classes, persistence implementations, or transaction mechanisms.
+
+---
+
+## 2. Existing Architectural Foundation
+
+Posting is an existing AcCore architectural concept.
+
+Posting transforms a business object into register movements and applies its accounting effects to the system.
+
+The Posting Engine is the central orchestration component.
+
+The Posting Handler contains business-specific posting logic.
+
+The MovementSet is the output of the Posting Handler.
+
+The Movement Service provides the boundary between Posting Architecture and register storage.
+
+The Register Posting Contract defines the requirements that movements must satisfy before acceptance by a register.
+
+Phase 6 therefore operationalizes these existing architectural concepts rather than redefining them.
+
+---
+
+# 3. Posting Engine
+
+## Responsibility
+
+The Posting Engine owns the posting operation and its orchestration.
+
+It is responsible for coordinating:
+
+* posting lifecycle;
+* Posting Handler resolution;
+* Posting Context creation;
+* handler execution;
+* generated MovementSet validation;
+* movement persistence through Register Services;
+* totals integration;
+* dependency integration;
+* posting events;
+* and the resulting posting state.
+
+The Posting Engine does not contain business-specific accounting logic.
+
+Business-specific accounting logic belongs to Posting Handlers.
+
+---
+
+## Boundary
+
+The Posting Engine is the orchestration boundary between the caller of posting and the internal posting execution process.
+
+Conceptually:
+
+```text
+Caller
+  │
+  │ post(document)
+  ▼
+Posting Engine
+  │
+  ├── resolve handler
+  ├── create context
+  ├── execute handler
+  ├── validate MovementSet
+  ├── apply register movements
+  └── complete posting lifecycle
+```
+
+The caller must not coordinate these internal steps itself.
+
+---
+
+# 4. Posting Operation
+
+Posting is an explicit operation performed by the Posting Engine.
+
+Conceptually:
+
+```text
+Business Object
+      │
+      │ post
+      ▼
+Posting Engine
+      │
+      ▼
+Accounting Effects
+```
+
+Posting is therefore not equivalent to:
+
+* saving an object;
+* changing a field;
+* persisting runtime state;
+* directly writing register records.
+
+Posting is the operation that transforms the semantic state of a business object into accounting effects.
+
+---
+
+# 5. Posting Context
+
+## Responsibility
+
+Posting Context is the controlled runtime environment supplied by the Posting Engine to a Posting Handler during posting execution.
+
+The Context is the integration boundary between posting logic and platform services.
+
+The existing architecture defines the Context as providing controlled access to:
+
+* the current document;
+* metadata;
+* runtime services;
+* registers;
+* queries;
+* references;
+* user information;
+* session information;
+* platform time.
+
+The exact programmatic API is deferred to a later step.
+
+---
+
+## Capability Boundary
+
+The Posting Context must prevent Posting Handlers from directly depending on infrastructure implementation details.
+
+A handler must not directly access:
+
+* storage providers;
+* filesystem paths;
+* persistence implementations;
+* transaction implementations;
+* register storage internals.
+
+Instead:
+
+```text
+Posting Handler
+      │
+      ▼
+Posting Context
+      │
+      ├── platform capabilities
+      ├── register capabilities
+      ├── runtime information
+      └── posting-specific execution context
+```
+
+The Context is therefore a capability boundary, not a service locator.
+
+---
+
+# 6. Posting Handler
+
+## Responsibility
+
+A Posting Handler contains the business-specific accounting logic for a particular business object.
+
+Its responsibility is:
+
+> Transform the semantic state of the business object into a MovementSet.
+
+Conceptually:
+
+```text
+Business Object
+      │
+      ▼
+Posting Handler
+      │
+      ▼
+MovementSet
+```
+
+The handler determines **what accounting facts the document produces**.
+
+It does not determine how those facts are physically stored.
+
+---
+
+## Explicit Non-Responsibilities
+
+Posting Handlers do not perform:
+
+* persistence;
+* transaction management;
+* totals updates;
+* dependency management;
+* direct storage access;
+* posting lifecycle orchestration.
+
+These responsibilities remain with the Posting Engine and Register Services.
+
+---
+
+# 7. MovementSet
+
+MovementSet is the primary output of a Posting Handler.
+
+It represents the complete collection of register movements generated by one posting operation.
+
+Conceptually:
+
+```text
+Posting Handler
+       │
+       ▼
+MovementSet
+   ├── Movement
+   ├── Movement
+   └── ...
+```
+
+MovementSet therefore forms the architectural handoff between:
+
+```text
+Posting semantics
+        ↓
+Movement validation / register application
+```
+
+A handler must not partially persist its output.
+
+The Posting Engine owns the lifecycle of the generated MovementSet.
+
+---
+
+# 8. Movement
+
+A Movement represents a business fact stored within an Accumulation Register.
+
+A Movement may contain:
+
+* dimensions;
+* resources;
+* attributes;
+* period information;
+* source information;
+* movement type;
+* other register-specific data.
+
+Movements are generated during posting, validated according to Register Posting Contracts, and persisted through Register Services.
+
+Therefore:
+
+```text
+Posting Handler
+      ↓
+MovementSet
+      ↓
+Movement validation
+      ↓
+Movement Service
+      ↓
+Register
+```
+
+---
+
+# 9. Movement Service
+
+Movement Service is the register-side service responsible for storing, retrieving, and managing movements.
+
+It forms the persistence/application boundary between Posting Architecture and register storage.
+
+Posting must interact with register persistence through this boundary.
+
+The Posting Engine therefore must not directly manipulate register storage structures.
+
+---
+
+# 10. Register Posting Contract
+
+Register Posting Contract is the integration contract between Posting Architecture and Register Architecture.
+
+It defines the requirements that generated movements must satisfy before the target register accepts them.
+
+A Register Posting Contract may define:
+
+* required dimensions;
+* required resources;
+* required attributes;
+* movement types;
+* data types;
+* validation rules.
+
+The contract belongs to the register's architectural definition, not to the posting handler.
+
+Conceptually:
+
+```text
+Posting Handler
+      │
+      │ MovementSet
+      ▼
+Register Posting Contract
+      │
+      │ validation
+      ▼
+Movement Service
+      │
+      ▼
+Register
+```
+
+---
+
+# 11. Responsibility Matrix
+
+| Component                 | Owns                                          | Does not own                       |
+| ------------------------- | --------------------------------------------- | ---------------------------------- |
+| Posting Engine            | posting orchestration and lifecycle           | business-specific accounting logic |
+| Posting Context           | controlled capabilities for handler execution | persistence implementation         |
+| Posting Handler           | document-specific posting semantics           | persistence, transactions, totals  |
+| MovementSet               | complete generated posting result             | persistence lifecycle              |
+| Movement Service          | movement storage and management               | posting logic                      |
+| Register Posting Contract | movement acceptance requirements              | document-specific posting logic    |
+| Register                  | register facts and register semantics         | document posting logic             |
+
+---
+
+# 12. Dependency Direction
+
+The intended dependency direction is:
+
+```text
+Operational Document
+        │
+        ▼
+Posting Engine
+        │
+        ├──────────────► Posting Handler
+        │                     │
+        │                     ▼
+        │                MovementSet
+        │
+        └──────────────► Movement Service
+                              │
+                              ▼
+                           Register
+```
+
+Register acceptance is governed by:
+
+```text
+MovementSet
+      │
+      ▼
+Register Posting Contract
+      │
+      ▼
+Movement Service
+```
+
+Persistence remains behind the register service boundary.
+
+Storage providers remain below persistence/storage architecture and are not visible to posting logic.
+
+---
+
+# 13. Runtime Boundary
+
+Posting executes within the Runtime Environment.
+
+The Posting Engine may use Runtime Services required for posting execution.
+
+Posting Handlers receive the current runtime business object through Posting Context.
+
+Runtime object identity remains distinct from durable movement/source identity.
+
+The posting architecture must never use an in-memory object reference as the durable identity of a register movement.
+
+---
+
+# 14. Persistence Boundary
+
+Posting does not bypass the persistence architecture established in Phase 5.
+
+The dependency chain remains:
+
+```text
+Posting
+   ↓
+Register / Movement Service
+   ↓
+Persistence
+   ↓
+Storage Provider
+```
+
+Posting has no knowledge of whether the underlying storage provider is filesystem-based, database-based, or another future implementation.
+
+---
+
+# 15. Accounting Semantics Boundary
+
+The critical boundary is:
+
+```text
+Business Object
+      │
+      │ semantic interpretation
+      ▼
+Posting Handler
+      │
+      │ MovementSet
+      ▼
+Register Architecture
+```
+
+The Posting Handler answers:
+
+> What accounting facts does this business object produce?
+
+The Register answers:
+
+> What facts are valid for this register and how are they maintained?
+
+The Posting Engine answers:
+
+> How is the posting operation orchestrated and completed?
+
+The Movement Service answers:
+
+> How are accepted movements managed and persisted?
+
+These responsibilities must remain distinct.
+
+---
+
+# 16. End-to-End Architectural Flow
+
+The complete conceptual flow is:
+
+```text
+                     ┌────────────────────┐
+                     │ Operational Object │
+                     └─────────┬──────────┘
+                               │
+                             post()
+                               │
+                               ▼
+                     ┌────────────────────┐
+                     │   Posting Engine   │
+                     └─────────┬──────────┘
+                               │
+                     creates / supplies
+                               │
+                               ▼
+                     ┌────────────────────┐
+                     │  Posting Context  │
+                     └─────────┬──────────┘
+                               │
+                             invokes
+                               │
+                               ▼
+                     ┌────────────────────┐
+                     │  Posting Handler  │
+                     └─────────┬──────────┘
+                               │
+                         generates
+                               │
+                               ▼
+                     ┌────────────────────┐
+                     │    MovementSet    │
+                     └─────────┬──────────┘
+                               │
+                         validation
+                               │
+                               ▼
+                 ┌─────────────────────────────┐
+                 │ Register Posting Contract   │
+                 └──────────────┬──────────────┘
+                                │
+                              accept
+                                │
+                                ▼
+                     ┌────────────────────┐
+                     │  Movement Service  │
+                     └─────────┬──────────┘
+                               │
+                               ▼
+                     ┌────────────────────┐
+                     │      Register      │
+                     └────────────────────┘
+```
+
+---
+
+# 17. Architectural Invariants
+
+The following invariants are established by Step 1.
+
+### INV-1 — Handler ownership
+
+Business-specific accounting logic belongs to Posting Handlers.
+
+### INV-2 — Engine ownership
+
+Posting lifecycle and orchestration belong to the Posting Engine.
+
+### INV-3 — Context boundary
+
+Posting Handlers access platform capabilities through Posting Context rather than infrastructure implementations.
+
+### INV-4 — MovementSet boundary
+
+A Posting Handler produces a complete MovementSet as its posting result.
+
+### INV-5 — Register boundary
+
+Register acceptance is governed by the Register Posting Contract.
+
+### INV-6 — Movement persistence boundary
+
+Movement persistence is performed through Movement Services rather than directly by Posting Handlers.
+
+### INV-7 — Storage isolation
+
+Posting logic does not depend on concrete storage providers.
+
+### INV-8 — Identity separation
+
+Runtime object identity and durable movement/source identity remain distinct.
+
+### INV-9 — No partial handler persistence
+
+A Posting Handler cannot expose partially persisted posting effects.
+
+### INV-10 — No business logic in infrastructure
+
+Movement Service and storage infrastructure do not implement document-specific posting semantics.
+
+### INV-11 — MovementSet for posting operation
+
+A Posting Handler must produce a complete MovementSet for one posting operation.
+
+---
+
+# 18. Explicitly Deferred Decisions
+
+Step 1 intentionally does not define:
+
+* Python protocol/class names;
+* method signatures;
+* exception hierarchy;
+* transaction implementation;
+* persistence transaction mechanism;
+* exact reposting algorithm;
+* movement identity generation;
+* exact movement schema;
+* concrete Inventory movement structure;
+* event payloads;
+* totals update implementation;
+* dependency graph implementation.
+
+These decisions belong to subsequent architectural steps.
+
+---
+
+# 19. Step 1 Acceptance Criteria
+
+Step 1 is complete when:
+
+1. Posting Engine ownership is explicit;
+2. Posting operation semantics are explicit;
+3. Posting Context responsibility and boundary are explicit;
+4. Posting Handler responsibility is explicit;
+5. MovementSet is established as the handler output;
+6. Movement Service boundary is explicit;
+7. Register Posting Contract boundary is explicit;
+8. dependency direction is explicit;
+9. persistence/storage isolation is preserved;
+10. runtime identity and durable movement identity remain distinct;
+11. handler responsibilities are separated from orchestration and infrastructure;
+12. deferred decisions are explicitly listed;
+13. the architecture is sufficient to derive Step 2's semantic contract.
+
+---
+
+# 20. Step 1 Decision
+
+**Accepted architectural model:**
+
+```text
+Operational Document
+        ↓
+Posting Engine
+        ↓
+Posting Context
+        ↓
+Posting Handler
+        ↓
+MovementSet
+        ↓
+Register Posting Contract
+        ↓
+Movement Service
+        ↓
+Register
+```
+
+The Posting Engine owns orchestration.
+
+The Posting Handler owns document-specific accounting semantics.
+
+The Posting Context provides controlled runtime capabilities.
+
+The MovementSet is the explicit output of posting logic.
+
+The Register Posting Contract governs acceptance of generated movements.
+
+The Movement Service owns movement persistence and management.
+
+Concrete implementation details remain deferred.

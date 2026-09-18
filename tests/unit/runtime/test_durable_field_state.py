@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC
 from decimal import Decimal
 from typing import Any
 
@@ -35,7 +36,7 @@ def test_empty_is_equal_to_empty_mapping() -> None:
         ("birth_date", __import__("datetime").date(2026, 9, 8)),
         (
             "created_at",
-            __import__("datetime").datetime(2026, 9, 8, 12, 30),
+            __import__("datetime").datetime(2026, 9, 8, 12, 30, tzinfo=UTC),
         ),
         ("description", None),
     ],

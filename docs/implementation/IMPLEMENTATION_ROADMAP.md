@@ -736,7 +736,7 @@ Inventory
 
 ## Acceptance Criteria
 
-Phase 5 is complete when:
+Phase 6 is complete when:
 
 1. a document can be posted;
 2. posting context is available;
