@@ -27,6 +27,7 @@ from accore.platform.registers.movement import (
     MovementResources,
     MovementType,
 )
+from accore.platform.registers.mutation import RegisterMutationOrchestrator
 from accore.platform.registers.query import (
     DefaultMovementQueryService,
     MovementDimensionFilter,
@@ -82,6 +83,7 @@ __all__ = [
     "MovementType",
     "MovementValidationError",
     "MovementValidator",
+    "RegisterMutationOrchestrator",
     "RegisterPostingContract",
     "RegisterPostingContractResolver",
     "TotalValue",
