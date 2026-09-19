@@ -11,6 +11,7 @@ from accore.platform.registers.contracts import (
     RegisterPostingContractResolver,
 )
 from accore.platform.registers.maintenance import (
+    DefaultTotalsMaintenanceCoordinator,
     MaintenanceOperation,
     MaintenanceOutcome,
     MaintenanceResult,
@@ -65,6 +66,7 @@ __all__ = [
     "DefaultMovementQueryService",
     "DefaultMovementValidator",
     "DefaultTotalsEngine",
+    "DefaultTotalsMaintenanceCoordinator",
     "MaintenanceOperation",
     "MaintenanceOutcome",
     "MaintenanceResult",
