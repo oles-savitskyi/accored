@@ -1,3 +1,11 @@
+from accore.platform.registers.balance import (
+    BalanceQuery,
+    BalanceQueryError,
+    BalanceQueryService,
+    BalanceQueryValidationError,
+    BalanceResult,
+    DefaultBalanceQueryService,
+)
 from accore.platform.registers.contracts import (
     RegisterPostingContract,
     RegisterPostingContractResolver,
@@ -9,6 +17,29 @@ from accore.platform.registers.movement import (
     MovementResources,
     MovementType,
 )
+from accore.platform.registers.query import (
+    DefaultMovementQueryService,
+    MovementDimensionFilter,
+    MovementQuery,
+    MovementQueryPeriod,
+    MovementQueryService,
+    MovementQueryValidationError,
+)
+from accore.platform.registers.totals import (
+    DefaultTotalsEngine,
+    TotalsAggregationError,
+    TotalsDefinition,
+    TotalsDefinitionError,
+    TotalsEngine,
+    TotalsError,
+    TotalsKey,
+    TotalsKeyError,
+    TotalsMovementTypeError,
+    TotalsReader,
+    TotalsRegisterMismatchError,
+    TotalsResourceError,
+    TotalValue,
+)
 from accore.platform.registers.validation import (
     DefaultMovementValidator,
     MovementValidationError,
@@ -16,14 +47,39 @@ from accore.platform.registers.validation import (
 )
 
 __all__ = [
+    "BalanceQuery",
+    "BalanceQueryError",
+    "BalanceQueryService",
+    "BalanceQueryValidationError",
+    "BalanceResult",
+    "DefaultBalanceQueryService",
+    "DefaultMovementQueryService",
     "DefaultMovementValidator",
+    "DefaultTotalsEngine",
     "Movement",
     "MovementAttributes",
+    "MovementDimensionFilter",
     "MovementDimensions",
+    "MovementQuery",
+    "MovementQueryPeriod",
+    "MovementQueryService",
+    "MovementQueryValidationError",
     "MovementResources",
     "MovementType",
     "MovementValidationError",
     "MovementValidator",
     "RegisterPostingContract",
     "RegisterPostingContractResolver",
+    "TotalValue",
+    "TotalsAggregationError",
+    "TotalsDefinition",
+    "TotalsDefinitionError",
+    "TotalsEngine",
+    "TotalsError",
+    "TotalsKey",
+    "TotalsKeyError",
+    "TotalsMovementTypeError",
+    "TotalsReader",
+    "TotalsRegisterMismatchError",
+    "TotalsResourceError",
 ]

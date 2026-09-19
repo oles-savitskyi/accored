@@ -15,7 +15,7 @@ from accore.platform.persistence.errors import (
     PersistenceNotFoundError,
     PersistenceUnsupportedError,
 )
-from accore.platform.persistence.facts import Movement, RegisterFactPersistence
+from accore.platform.persistence.facts import RegisterFactPersistence
 from accore.platform.persistence.field_state import PersistentFieldState
 from accore.platform.persistence.mapping import (
     HydratedRuntimeObject,
@@ -34,6 +34,7 @@ from accore.platform.persistence.reference_state import PersistentReferenceState
 from accore.platform.persistence.system_field_state import (
     PersistentSystemFieldState,
 )
+from accore.platform.registers import Movement
 
 __all__ = [
     "ConfigurationPersistence",

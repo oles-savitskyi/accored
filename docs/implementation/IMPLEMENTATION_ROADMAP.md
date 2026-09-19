@@ -799,7 +799,7 @@ Inventory Balance Query
 
 ## Acceptance Criteria
 
-Phase 6 is complete when:
+Phase 7 is complete when:
 
 1. register movements can be persisted;
 2. register movements can be queried;
