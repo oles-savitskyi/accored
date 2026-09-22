@@ -17,6 +17,7 @@ from accore.platform.registers.maintenance import (
     MaintenanceResult,
     TotalsConsistencyState,
     TotalsLifecycleState,
+    TotalsMaintenanceAdmissionError,
     TotalsMaintenanceCoordinator,
     TotalsMaintenanceState,
 )
@@ -27,7 +28,14 @@ from accore.platform.registers.movement import (
     MovementResources,
     MovementType,
 )
-from accore.platform.registers.mutation import RegisterMutationOrchestrator
+from accore.platform.registers.mutation import (
+    RegisterMutationMaintenanceError,
+    RegisterMutationOrchestrator,
+)
+from accore.platform.registers.operation_domain import (
+    RegisterOperationDomain,
+    RegisterOperationDomainRegistry,
+)
 from accore.platform.registers.query import (
     DefaultMovementQueryService,
     MovementDimensionFilter,
@@ -83,7 +91,10 @@ __all__ = [
     "MovementType",
     "MovementValidationError",
     "MovementValidator",
+    "RegisterMutationMaintenanceError",
     "RegisterMutationOrchestrator",
+    "RegisterOperationDomain",
+    "RegisterOperationDomainRegistry",
     "RegisterPostingContract",
     "RegisterPostingContractResolver",
     "TotalValue",
@@ -96,6 +107,7 @@ __all__ = [
     "TotalsKey",
     "TotalsKeyError",
     "TotalsLifecycleState",
+    "TotalsMaintenanceAdmissionError",
     "TotalsMaintenanceCoordinator",
     "TotalsMaintenanceState",
     "TotalsMovementTypeError",

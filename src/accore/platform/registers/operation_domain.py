@@ -10,7 +10,7 @@ T = TypeVar("T")
 
 
 class RegisterOperationDomain:
-    """Internal process-local operation domain for one Register."""
+    """Register-scoped process-local operation domain."""
 
     def __init__(self, register_identity: Identifier) -> None:
         self._register_identity = register_identity
@@ -26,7 +26,7 @@ class RegisterOperationDomain:
 
 
 class RegisterOperationDomainRegistry:
-    """Internal registry providing one shared domain per Register identity."""
+    """Registry providing one shared operation domain per Register identity."""
 
     def __init__(self) -> None:
         self._guard = RLock()

@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from threading import RLock, Thread
-from time import sleep
 
 from accore.platform.foundation import Identifier
 from accore.platform.persistence.errors import (
@@ -15,7 +13,6 @@ from accore.platform.registers import (
     DefaultTotalsMaintenanceCoordinator,
     MaintenanceOperation,
     MaintenanceOutcome,
-    MaintenanceResult,
     Movement,
     MovementAttributes,
     MovementDimensions,
@@ -431,66 +428,3 @@ def test_remove_totals_failure_requires_recovery() -> None:
         lifecycle=TotalsLifecycleState.ACTIVE,
         consistency=TotalsConsistencyState.RECOVERY_REQUIRED,
     )
-
-
-def test_same_register_operations_are_serialized() -> None:
-    register = Identifier.new()
-    definition = make_definition(register)
-
-    class TrackingEngine(DefaultTotalsEngine):
-        def __init__(self) -> None:
-            super().__init__((definition,))
-            self.active_calls = 0
-            self.maximum_active_calls = 0
-            self._tracking_lock = RLock()
-
-        def apply(self, movement: Movement) -> Decimal:
-            with self._tracking_lock:
-                self.active_calls += 1
-                self.maximum_active_calls = max(
-                    self.maximum_active_calls,
-                    self.active_calls,
-                )
-
-            try:
-                sleep(0.02)
-                return super().apply(movement)
-            finally:
-                with self._tracking_lock:
-                    self.active_calls -= 1
-
-    persistence = InMemoryRegisterFactPersistence()
-    engine = TrackingEngine()
-    coordinator = DefaultTotalsMaintenanceCoordinator(
-        engine=engine,
-        persistence=persistence,
-    )
-
-    first_movement = make_movement(register=register)
-    second_movement = make_movement(register=register)
-
-    results: list[MaintenanceResult] = []
-
-    def apply_movement(movement: Movement) -> None:
-        results.append(coordinator.apply(movement))
-
-    first = Thread(
-        target=apply_movement,
-        args=(first_movement,),
-    )
-    second = Thread(
-        target=apply_movement,
-        args=(second_movement,),
-    )
-
-    first.start()
-    second.start()
-
-    first.join(timeout=2)
-    second.join(timeout=2)
-
-    assert not first.is_alive()
-    assert not second.is_alive()
-    assert len(results) == 2
-    assert all(result.outcome is MaintenanceOutcome.SUCCESS for result in results)
-    assert engine.maximum_active_calls == 1

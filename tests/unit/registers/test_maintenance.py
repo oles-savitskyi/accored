@@ -5,7 +5,9 @@ from inspect import signature
 
 import pytest
 
+from accore.platform.foundation import Identifier
 from accore.platform.registers import (
+    DefaultTotalsMaintenanceCoordinator,
     MaintenanceOperation,
     MaintenanceOutcome,
     MaintenanceResult,
@@ -164,9 +166,11 @@ def test_totals_maintenance_coordinator_has_the_public_api_only() -> None:
 
     assert public_methods == {
         "apply",
+        "ensure_mutation_admitted",
         "remove",
         "rebuild",
         "recover",
+        "state",
     }
 
 
@@ -204,3 +208,28 @@ def test_recover_signature() -> None:
     assert [parameter.name for parameter in parameters] == ["self", "register_identity"]
     assert parameters[1].annotation == "Identifier"
     assert method.__annotations__["return"] == "MaintenanceResult"
+
+
+def test_rebuild_unexpected_failure_returns_indeterminate_recovery_required_state() -> None:
+    register = Identifier.new()
+
+    class Persistence:
+        def enumerate(self, register_identity: Identifier) -> tuple[object, ...]:
+            return ()
+
+    class FailingEngine:
+        def rebuild(self, register_identity: Identifier, movements: tuple[object, ...]) -> None:
+            raise RuntimeError("unexpected rebuild failure")
+
+    coordinator = DefaultTotalsMaintenanceCoordinator(
+        engine=FailingEngine(),
+        persistence=Persistence(),
+    )
+
+    result = coordinator.rebuild(register)
+
+    assert result.operation is MaintenanceOperation.REBUILD
+    assert result.outcome is MaintenanceOutcome.INDETERMINATE
+    assert result.state.lifecycle is TotalsLifecycleState.ACTIVE
+    assert result.state.consistency is TotalsConsistencyState.RECOVERY_REQUIRED
+    assert coordinator.state(register) == result.state

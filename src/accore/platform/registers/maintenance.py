@@ -78,6 +78,28 @@ class TotalsMaintenanceCoordinator(Protocol):
     def recover(self, register_identity: Identifier) -> MaintenanceResult:
         """Recover Register Totals through authoritative reconstruction."""
 
+    def state(self, register_identity: Identifier) -> TotalsMaintenanceState:
+        """Return the authoritative lifecycle and consistency state."""
+
+    def ensure_mutation_admitted(self, register_identity: Identifier) -> None:
+        """Ensure ordinary Register mutation is semantically admissible."""
+
+
+class TotalsMaintenanceAdmissionError(RuntimeError):
+    """Raised when a Register is not admissible for ordinary mutation."""
+
+    def __init__(
+        self,
+        register_identity: Identifier,
+        state: TotalsMaintenanceState,
+    ) -> None:
+        self.register_identity = register_identity
+        self.state = state
+        super().__init__(
+            f"Register {register_identity!r} is not admissible for mutation: "
+            f"lifecycle={state.lifecycle.value}, consistency={state.consistency.value}"
+        )
+
 
 class DefaultTotalsMaintenanceCoordinator:
     """Reference implementation of the Totals maintenance boundary."""
@@ -90,9 +112,7 @@ class DefaultTotalsMaintenanceCoordinator:
         self._engine = engine
         self._persistence = persistence
 
-        self._locks_guard = RLock()
-        self._locks: dict[Identifier, RLock] = {}
-
+        self._state_lock = RLock()
         self._applied: dict[
             Identifier,
             set[tuple[Identifier, Identifier]],
@@ -101,93 +121,87 @@ class DefaultTotalsMaintenanceCoordinator:
 
     def apply(self, movement: Movement) -> MaintenanceResult:
         register_identity = movement.register_identity
-        lock = self._lock_for(register_identity)
+        state = self._state_for(register_identity)
+        contribution_key = self._contribution_key(movement)
 
-        with lock:
-            state = self._state_for(register_identity)
-            contribution_key = self._contribution_key(movement)
-
-            if contribution_key in self._applied_for(register_identity):
-                return self._success(
-                    MaintenanceOperation.APPLY,
-                    state,
-                )
-
-            self._states[register_identity] = self._maintenance_state(state)
-
-            try:
-                self._engine.apply(movement)
-            except TotalsError:
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
-
-                return self._failure(
-                    MaintenanceOperation.APPLY,
-                    state,
-                )
-            except Exception:  # noqa: BLE001 — unexpected failures are explicitly indeterminate
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
-
-                return self._indeterminate(
-                    MaintenanceOperation.APPLY,
-                    state,
-                )
-
-            self._applied_for(register_identity).add(contribution_key)
-
-            state = self._active_valid_state()
-            self._states[register_identity] = state
-
+        if self._is_applied(register_identity, contribution_key):
             return self._success(
                 MaintenanceOperation.APPLY,
                 state,
             )
 
+        self._set_state(register_identity, self._maintenance_state(state))
+
+        try:
+            self._engine.apply(movement)
+        except TotalsError:
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
+
+            return self._failure(
+                MaintenanceOperation.APPLY,
+                state,
+            )
+        except Exception:  # noqa: BLE001 — unexpected failures are explicitly indeterminate
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
+
+            return self._indeterminate(
+                MaintenanceOperation.APPLY,
+                state,
+            )
+
+        self._mark_applied(register_identity, contribution_key)
+
+        state = self._active_valid_state()
+        self._set_state(register_identity, state)
+
+        return self._success(
+            MaintenanceOperation.APPLY,
+            state,
+        )
+
     def remove(self, movement: Movement) -> MaintenanceResult:
         register_identity = movement.register_identity
-        lock = self._lock_for(register_identity)
+        state = self._state_for(register_identity)
+        contribution_key = self._contribution_key(movement)
 
-        with lock:
-            state = self._state_for(register_identity)
-            contribution_key = self._contribution_key(movement)
-
-            if contribution_key not in self._applied_for(register_identity):
-                return self._success(
-                    MaintenanceOperation.REMOVE,
-                    state,
-                )
-
-            self._states[register_identity] = self._maintenance_state(state)
-
-            try:
-                self._engine.remove(movement)
-            except TotalsError:
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
-
-                return self._failure(
-                    MaintenanceOperation.REMOVE,
-                    state,
-                )
-            except Exception:  # noqa: BLE001 — unexpected failures are explicitly indeterminate
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
-
-                return self._indeterminate(
-                    MaintenanceOperation.REMOVE,
-                    state,
-                )
-
-            self._applied_for(register_identity).remove(contribution_key)
-
-            state = self._active_valid_state()
-            self._states[register_identity] = state
-
+        if not self._is_applied(register_identity, contribution_key):
             return self._success(
                 MaintenanceOperation.REMOVE,
                 state,
             )
+
+        self._set_state(register_identity, self._maintenance_state(state))
+
+        try:
+            self._engine.remove(movement)
+        except TotalsError:
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
+
+            return self._failure(
+                MaintenanceOperation.REMOVE,
+                state,
+            )
+        except Exception:  # noqa: BLE001 — unexpected failures are explicitly indeterminate
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
+
+            return self._indeterminate(
+                MaintenanceOperation.REMOVE,
+                state,
+            )
+
+        self._mark_removed(register_identity, contribution_key)
+
+        state = self._active_valid_state()
+        self._set_state(register_identity, state)
+
+        return self._success(
+            MaintenanceOperation.REMOVE,
+            state,
+        )
 
     def rebuild(self, register_identity: Identifier) -> MaintenanceResult:
         from accore.platform.persistence.errors import (
@@ -195,93 +209,135 @@ class DefaultTotalsMaintenanceCoordinator:
             PersistenceIndeterminateError,
         )
 
-        lock = self._lock_for(register_identity)
+        current_state = self._state_for(register_identity)
+        self._set_state(register_identity, self._maintenance_state(current_state))
 
-        with lock:
-            current_state = self._state_for(register_identity)
-            self._states[register_identity] = self._maintenance_state(current_state)
+        try:
+            movements = self._persistence.enumerate(register_identity)
+            self._engine.rebuild(register_identity, movements)
+        except PersistenceIndeterminateError:
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
 
-            try:
-                movements = self._persistence.enumerate(register_identity)
-                self._engine.rebuild(register_identity, movements)
-            except PersistenceIndeterminateError:
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
+            return self._indeterminate(
+                MaintenanceOperation.REBUILD,
+                state,
+            )
+        except PersistenceError:
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
 
-                return self._indeterminate(
-                    MaintenanceOperation.REBUILD,
-                    state,
-                )
-            except PersistenceError:
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
+            return self._failure(
+                MaintenanceOperation.REBUILD,
+                state,
+            )
+        except TotalsError:
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
 
-                return self._failure(
-                    MaintenanceOperation.REBUILD,
-                    state,
-                )
-            except TotalsError:
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
+            return self._failure(
+                MaintenanceOperation.REBUILD,
+                state,
+            )
+        except Exception:  # noqa: BLE001 — unexpected failures are explicitly indeterminate
+            state = self._recovery_required_state()
+            self._set_state(register_identity, state)
 
-                return self._failure(
-                    MaintenanceOperation.REBUILD,
-                    state,
-                )
-            except Exception:  # noqa: BLE001 — unexpected failures are explicitly indeterminate
-                state = self._recovery_required_state()
-                self._states[register_identity] = state
-
-                return self._indeterminate(
-                    MaintenanceOperation.REBUILD,
-                    state,
-                )
-
-            self._applied[register_identity] = {
-                self._contribution_key(movement) for movement in movements
-            }
-
-            state = self._active_valid_state()
-            self._states[register_identity] = state
-
-            return self._success(
+            return self._indeterminate(
                 MaintenanceOperation.REBUILD,
                 state,
             )
 
+        self._replace_applied(
+            register_identity,
+            {self._contribution_key(movement) for movement in movements},
+        )
+
+        state = self._active_valid_state()
+        self._set_state(register_identity, state)
+
+        return self._success(
+            MaintenanceOperation.REBUILD,
+            state,
+        )
+
     def recover(self, register_identity: Identifier) -> MaintenanceResult:
         return self.rebuild(register_identity)
 
-    def _lock_for(self, register_identity: Identifier) -> RLock:
-        with self._locks_guard:
-            lock = self._locks.get(register_identity)
-
-            if lock is None:
-                lock = RLock()
-                self._locks[register_identity] = lock
-
-            return lock
-
-    def _applied_for(
+    def state(
         self,
         register_identity: Identifier,
-    ) -> set[tuple[Identifier, Identifier]]:
-        applied = self._applied.get(register_identity)
+    ) -> TotalsMaintenanceState:
+        return self._state_for(register_identity)
 
-        if applied is None:
-            applied = set()
-            self._applied[register_identity] = applied
+    def ensure_mutation_admitted(
+        self,
+        register_identity: Identifier,
+    ) -> None:
+        state = self._state_for(register_identity)
 
-        return applied
+        if (
+            state.lifecycle is TotalsLifecycleState.ACTIVE
+            and state.consistency is TotalsConsistencyState.VALID
+        ):
+            return
+
+        raise TotalsMaintenanceAdmissionError(
+            register_identity,
+            state,
+        )
+
+    def _is_applied(
+        self,
+        register_identity: Identifier,
+        contribution_key: tuple[Identifier, Identifier],
+    ) -> bool:
+        with self._state_lock:
+            return contribution_key in self._applied.get(register_identity, set())
+
+    def _mark_applied(
+        self,
+        register_identity: Identifier,
+        contribution_key: tuple[Identifier, Identifier],
+    ) -> None:
+        with self._state_lock:
+            self._applied.setdefault(register_identity, set()).add(contribution_key)
+
+    def _mark_removed(
+        self,
+        register_identity: Identifier,
+        contribution_key: tuple[Identifier, Identifier],
+    ) -> None:
+        with self._state_lock:
+            applied = self._applied.get(register_identity)
+            if applied is not None:
+                applied.remove(contribution_key)
+
+    def _replace_applied(
+        self,
+        register_identity: Identifier,
+        contributions: set[tuple[Identifier, Identifier]],
+    ) -> None:
+        with self._state_lock:
+            self._applied[register_identity] = contributions
 
     def _state_for(
         self,
         register_identity: Identifier,
     ) -> TotalsMaintenanceState:
-        return self._states.get(
-            register_identity,
-            self._created_state(),
-        )
+        with self._state_lock:
+            return self._states.get(
+                register_identity,
+                self._created_state(),
+            )
+
+    def _set_state(
+        self,
+        register_identity: Identifier,
+        state: TotalsMaintenanceState,
+    ) -> None:
+        with self._state_lock:
+            self._states[register_identity] = state
 
     @staticmethod
     def _contribution_key(
