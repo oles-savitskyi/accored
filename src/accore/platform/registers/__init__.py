@@ -7,6 +7,7 @@ from accore.platform.registers.balance import (
     DefaultBalanceQueryService,
 )
 from accore.platform.registers.contracts import (
+    MappingRegisterPostingContractResolver,
     RegisterPostingContract,
     RegisterPostingContractResolver,
 )
@@ -79,6 +80,7 @@ __all__ = [
     "MaintenanceOperation",
     "MaintenanceOutcome",
     "MaintenanceResult",
+    "MappingRegisterPostingContractResolver",
     "Movement",
     "MovementAttributes",
     "MovementDimensionFilter",

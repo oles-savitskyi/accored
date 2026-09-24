@@ -13,8 +13,13 @@ from accore.platform.registers import (
     MovementType,
 )
 from accore.platform.value import CollectionValue, StructuredValue
+from standard.registers.inventory import (
+    INVENTORY_PRODUCT_DIMENSION,
+    INVENTORY_QUANTITY_RESOURCE,
+    INVENTORY_REGISTER_ID,
+    INVENTORY_WAREHOUSE_DIMENSION,
+)
 
-INVENTORY_REGISTER_ID = Identifier.from_str("01ARZ3NDEKTSV4RRFFQ69G5FAT")
 GOODS_RECEIPT_MOVEMENT_TYPE = MovementType.INCOME
 LINES_FIELD = "lines"
 PRODUCT_FIELD = "product"
@@ -57,9 +62,14 @@ class GoodsReceiptPostingHandler:
                     register_identity=INVENTORY_REGISTER_ID,
                     movement_type=GOODS_RECEIPT_MOVEMENT_TYPE,
                     dimensions=MovementDimensions.from_mapping(
-                        {PRODUCT_FIELD: product, WAREHOUSE_FIELD: warehouse}
+                        {
+                            INVENTORY_PRODUCT_DIMENSION: product,
+                            INVENTORY_WAREHOUSE_DIMENSION: warehouse,
+                        }
                     ),
-                    resources=MovementResources.from_mapping({QUANTITY_FIELD: quantity}),
+                    resources=MovementResources.from_mapping(
+                        {INVENTORY_QUANTITY_RESOURCE: quantity}
+                    ),
                     attributes=MovementAttributes.from_mapping({}),
                     accounting_time=context.clock.now(),
                 )

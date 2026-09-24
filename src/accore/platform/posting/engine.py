@@ -101,13 +101,18 @@ class PostingEngine:
             handler = self._handler_resolver.resolve(document)
             movement_set = handler.post(context)
             self._movement_validator.validate(movement_set)
+        except Exception as exc:  # noqa: BLE001
+            return PostingResult.failure(PostingHandlerError(str(exc)))
+
+        try:
+            self._coordinator.remove(document)
             self._coordinator.establish(document, movement_set)
         except PersistenceIndeterminateError as exc:
             return PostingResult.indeterminate(PostingIndeterminateError(str(exc)))
         except PersistenceError as exc:
             return PostingResult.failure(PostingPersistenceError(str(exc)))
         except Exception as exc:  # noqa: BLE001
-            return PostingResult.failure(PostingHandlerError(str(exc)))
+            return PostingResult.failure(PostingPersistenceError(str(exc)))
 
         self._events.publish(DocumentReposted(document.identity))
         return PostingResult.success()

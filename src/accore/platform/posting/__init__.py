@@ -23,6 +23,7 @@ from accore.platform.posting.handlers import (
     PostingHandlerResolver,
 )
 from accore.platform.posting.movement_set import MovementSet
+from accore.platform.posting.register_coordinator import RegisterPostingResultCoordinator
 from accore.platform.posting.result import PostingOutcome, PostingResult
 
 __all__ = [
@@ -51,4 +52,5 @@ __all__ = [
     "PostingResult",
     "PostingServices",
     "PostingValidationError",
+    "RegisterPostingResultCoordinator",
 ]

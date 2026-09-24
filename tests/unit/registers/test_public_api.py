@@ -5,6 +5,7 @@ from accore.platform.registers import (
     DefaultTotalsEngine,
     DefaultTotalsMaintenanceCoordinator,
     MaintenanceOperation,
+    MappingRegisterPostingContractResolver,
     MovementType,
     RegisterMutationOrchestrator,
     RegisterOperationDomain,
@@ -31,6 +32,7 @@ EXPECTED_PUBLIC_API = {
     "MaintenanceOperation",
     "MaintenanceOutcome",
     "MaintenanceResult",
+    "MappingRegisterPostingContractResolver",
     "Movement",
     "MovementAttributes",
     "MovementDimensionFilter",
@@ -131,6 +133,9 @@ def test_public_concrete_implementations_are_constructible() -> None:
 def test_public_package_is_canonical_import_boundary() -> None:
     assert registers.DefaultTotalsEngine is DefaultTotalsEngine
     assert registers.DefaultTotalsMaintenanceCoordinator is DefaultTotalsMaintenanceCoordinator
+    assert (
+        registers.MappingRegisterPostingContractResolver is MappingRegisterPostingContractResolver
+    )
     assert registers.RegisterOperationDomain is RegisterOperationDomain
     assert registers.RegisterOperationDomainRegistry is RegisterOperationDomainRegistry
     assert registers.RegisterMutationOrchestrator is RegisterMutationOrchestrator
