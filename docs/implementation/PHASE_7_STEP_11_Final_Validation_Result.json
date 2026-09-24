@@ -1,0 +1,647 @@
+{
+  "schema_version": "1.0",
+  "phase": 7,
+  "step": 11,
+  "metadata": {
+    "status": "COMPLETED",
+    "operator": "AcCoreD validation session",
+    "started_at": "2026-09-24T18:39:34Z",
+    "completed_at": "2026-09-24T18:39:34Z",
+    "notes": "Actual validation commands were executed in the project environment. Technical validation passed. Final repository cleanliness remains a post-artifact-commit gate."
+  },
+  "repository": {
+    "branch": "main",
+    "head_commit": "18c5efbd0444fcaa3408b21b2b77789f69993620",
+    "origin_main_commit": "18c5efbd0444fcaa3408b21b2b77789f69993620",
+    "working_tree": "DIRTY",
+    "synchronized": true
+  },
+  "test_layers": {
+    "unit": {
+      "result": "PASS",
+      "command": "pytest -q tests/unit",
+      "exit_code": 0,
+      "passed": 828,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "evidence": [
+        "828 passed"
+      ]
+    },
+    "contract": {
+      "result": "PASS",
+      "command": "pytest -q tests/contracts",
+      "exit_code": 0,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "evidence": [
+        "24 passed"
+      ]
+    },
+    "integration": {
+      "result": "PASS",
+      "command": "pytest -q",
+      "exit_code": 0,
+      "passed": 896,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "evidence": [
+        "Integration-oriented tests are included in the existing unit hierarchy; full suite passed."
+      ]
+    },
+    "vertical": {
+      "result": "PASS",
+      "command": "pytest -q tests/vertical",
+      "exit_code": 0,
+      "passed": 44,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "evidence": [
+        "44 passed"
+      ]
+    },
+    "step9_vertical_slice": {
+      "result": "PASS",
+      "command": "pytest -q tests/vertical/phase7/test_phase7_step9_vertical_slice.py",
+      "exit_code": 0,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "evidence": [
+        "11 passed"
+      ]
+    },
+    "step10_rebuild_consistency": {
+      "result": "PASS",
+      "command": "pytest -q tests/vertical/phase7/test_phase7_step10_rebuild_consistency.py",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "evidence": [
+        "9 passed"
+      ]
+    }
+  },
+  "full_test_suite": {
+    "result": "PASS",
+    "command": "pytest -q",
+    "exit_code": 0,
+    "passed": 896,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "evidence": [
+      "896 passed in 8.67s"
+    ]
+  },
+  "static_analysis": {
+    "ruff": {
+      "result": "PASS",
+      "command": "ruff check .",
+      "exit_code": 0,
+      "evidence": [
+        "All checks passed!"
+      ]
+    },
+    "black": {
+      "result": "PASS",
+      "command": "black --check .",
+      "exit_code": 0,
+      "evidence": [
+        "194 files would be left unchanged."
+      ]
+    },
+    "mypy": {
+      "result": "PASS",
+      "command": "mypy src",
+      "exit_code": 0,
+      "evidence": [
+        "Success: no issues found in 103 source files"
+      ]
+    }
+  },
+  "architectural_invariants": {
+    "summary": {
+      "total": 30,
+      "pass": 30,
+      "gap": 0,
+      "fail": 0
+    },
+    "items": [
+      {
+        "id": "REG-07-01",
+        "requirement": "Movement Is Primary Fact",
+        "evidence": [
+          "Step 9 vertical slice; Step 10 rebuild/consistency; persistence facts API"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-02",
+        "requirement": "Totals Are Derived",
+        "evidence": [
+          "Step 10 rebuild/consistency: incremental vs rebuild equivalence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-03",
+        "requirement": "Balance Is Derived Aggregate",
+        "evidence": [
+          "Step 9 vertical slice; Step 10 balance equivalence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-04",
+        "requirement": "Storage Independence",
+        "evidence": [
+          "Step 8 production composition; Step 9 production vertical slice; existing persistence protocol"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-05",
+        "requirement": "Persistence Boundary Reuse",
+        "evidence": [
+          "Step 8/9 architecture docs; existing RegisterFactPersistence boundary"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-06",
+        "requirement": "Movement Immutability",
+        "evidence": [
+          "Movement model contract tests; Step 9/10 behavioral evidence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-07",
+        "requirement": "Stable Movement Identity",
+        "evidence": [
+          "Movement identity contract; persistence/find/remove behavior; Step 9"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-08",
+        "requirement": "Accounting Time",
+        "evidence": [
+          "Step 9 temporal query tests; movement model validation"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-09",
+        "requirement": "Period Boundary",
+        "evidence": [
+          "Step 9 vertical test: temporal and half-open boundary"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-10",
+        "requirement": "Direction",
+        "evidence": [
+          "Inventory configuration + Step 10 Inventory INCOME/EXPENSE evidence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-11",
+        "requirement": "Dimension Semantics",
+        "evidence": [
+          "Register dimension/value contracts; Step 9 dimension filtering"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-12",
+        "requirement": "Partial Dimension Queries",
+        "evidence": [
+          "Step 9 product/warehouse/both dimension filtering"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-13",
+        "requirement": "Resource Semantics",
+        "evidence": [
+          "Inventory Quantity Decimal contract; Step 9/10 balance evidence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-14",
+        "requirement": "Totals Granularity Is Implementation Detail",
+        "evidence": [
+          "Step 7 totals/balance chain; Step 10 balance equivalence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-15",
+        "requirement": "Totals Engine Genericity",
+        "evidence": [
+          "Step 8 production architecture; Step 10 register-isolation evidence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-16",
+        "requirement": "Incremental/Rebuild Equivalence",
+        "evidence": [
+          "Step 10 test: incremental totals equal rebuilt totals and balance"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-17",
+        "requirement": "Rebuild From Movements",
+        "evidence": [
+          "Step 10 stale-state replacement/rebuild tests; TotalsEngine.rebuild contract"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-18",
+        "requirement": "Rebuild Maintenance Boundary",
+        "evidence": [
+          "Step 10 failure/recovery/lifecycle tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-19",
+        "requirement": "Posting Consistency",
+        "evidence": [
+          "Step 9 production PostingEngine → RegisterMutationOrchestrator → persistence/totals"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-20",
+        "requirement": "No Partial Successful Posting",
+        "evidence": [
+          "Step 9 posting result/failure tests; Step 10 failure classification"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-21",
+        "requirement": "Unpost Removes Effect",
+        "evidence": [
+          "Step 9 unpost test; authoritative source-document lookup"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-22",
+        "requirement": "Repost Replaces Effect",
+        "evidence": [
+          "Step 9 repost test; Step 10 repost→rebuild consistency"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-23",
+        "requirement": "Empty Balance",
+        "evidence": [
+          "Step 10 empty-register rebuild; BalanceQuery semantics"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-24",
+        "requirement": "Lifecycle Enforcement",
+        "evidence": [
+          "Step 10 recovery/admission test; maintenance state evidence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-25",
+        "requirement": "Events Describe Completed State",
+        "evidence": [
+          "PostingEngine event emission after establish/remove sequence; Step 9"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-26",
+        "requirement": "Dependency Separation",
+        "evidence": [
+          "Step 8 architecture definition; production composition separation"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-27",
+        "requirement": "Runtime Identity Independence",
+        "evidence": [
+          "Step 8 configuration identity + generic register APIs"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-28",
+        "requirement": "Deterministic Query Semantics",
+        "evidence": [
+          "Step 9 deterministic ordering and filtering tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-29",
+        "requirement": "Outcome Semantics",
+        "evidence": [
+          "Step 9/10 failure and indeterminate tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "REG-07-30",
+        "requirement": "Inventory Genericity",
+        "evidence": [
+          "Step 8 Inventory configuration + generic engine/maintenance; Step 10 register isolation"
+        ],
+        "status": "PASS"
+      }
+    ]
+  },
+  "acceptance_criteria": {
+    "summary": {
+      "total": 22,
+      "pass": 22,
+      "gap": 0,
+      "fail": 0
+    },
+    "items": [
+      {
+        "id": "AC-07-01",
+        "requirement": "Movement Persistence",
+        "evidence": [
+          "Step 9 production vertical slice"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-02",
+        "requirement": "Movement Query",
+        "evidence": [
+          "Step 9 movement query tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-03",
+        "requirement": "Temporal Filtering",
+        "evidence": [
+          "Step 9 temporal and half-open boundary test"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-04",
+        "requirement": "Dimension Filtering",
+        "evidence": [
+          "Step 9 product/warehouse/both filtering tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-05",
+        "requirement": "Partial Dimensions",
+        "evidence": [
+          "Step 9 partial dimension tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-06",
+        "requirement": "Resource Aggregation",
+        "evidence": [
+          "Step 9/10 Quantity Decimal balance evidence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-07",
+        "requirement": "Totals Maintenance",
+        "evidence": [
+          "Step 9 posting → mutation → totals"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-08",
+        "requirement": "Balance Query",
+        "evidence": [
+          "Step 9 production BalanceQueryService"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-09",
+        "requirement": "Empty Balance",
+        "evidence": [
+          "Step 10 empty register rebuild + balance"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-10",
+        "requirement": "Inventory Balance",
+        "evidence": [
+          "Step 9 Goods Receipt vertical slice"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-11",
+        "requirement": "Unpost",
+        "evidence": [
+          "Step 9 unpost"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-12",
+        "requirement": "Repost",
+        "evidence": [
+          "Step 9 repost"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-13",
+        "requirement": "Rebuild",
+        "evidence": [
+          "Step 10 rebuild tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-14",
+        "requirement": "Rebuild Equivalence",
+        "evidence": [
+          "Step 10 equivalence test"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-15",
+        "requirement": "Lifecycle",
+        "evidence": [
+          "Step 10 lifecycle/admission/recovery"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-16",
+        "requirement": "Failure Semantics",
+        "evidence": [
+          "Step 10 failure classification/recovery; Step 9 posting results"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-17",
+        "requirement": "Atomic Register Effect",
+        "evidence": [
+          "Step 9 production mutation orchestration"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-18",
+        "requirement": "Persistence Architecture Boundary",
+        "evidence": [
+          "Step 8/9 architecture and production composition"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-19",
+        "requirement": "Accounting Time",
+        "evidence": [
+          "Step 9 temporal tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-20",
+        "requirement": "Query Determinism",
+        "evidence": [
+          "Step 9 query sorting/filtering evidence"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-21",
+        "requirement": "Rebuild Isolation",
+        "evidence": [
+          "Step 10 register isolation and recovery tests"
+        ],
+        "status": "PASS"
+      },
+      {
+        "id": "AC-07-22",
+        "requirement": "Inventory Genericity",
+        "evidence": [
+          "Step 8 architecture + Step 10 register isolation"
+        ],
+        "status": "PASS"
+      }
+    ]
+  },
+  "vertical_slice": {
+    "result": "PASS",
+    "goods_receipt_posting": true,
+    "movement_persistence": true,
+    "totals_maintenance": true,
+    "balance_query": true,
+    "unpost": true,
+    "repost": true,
+    "dimension_filtering": true,
+    "temporal_filtering": true,
+    "production_composition": true,
+    "evidence": [
+      "Step 9 dedicated test: 11 passed"
+    ]
+  },
+  "rebuild_consistency": {
+    "result": "PASS",
+    "incremental_equals_rebuild": true,
+    "balance_equivalence": true,
+    "idempotent_rebuild": true,
+    "stale_state_replacement": true,
+    "empty_register": true,
+    "failure_classification": true,
+    "recovery": true,
+    "movement_facts_preserved": true,
+    "unpost_rebuild_equivalence": true,
+    "repost_rebuild_equivalence": true,
+    "register_isolation": true,
+    "evidence": [
+      "Step 10 dedicated test: 9 passed"
+    ]
+  },
+  "inventory": {
+    "result": "PASS",
+    "standard_configuration": true,
+    "generic_totals_engine": true,
+    "generic_maintenance": true,
+    "generic_queries": true,
+    "income_expense_semantics": true,
+    "decimal_quantity": true,
+    "production_composition": true,
+    "evidence": [
+      "Step 8 architecture/API and Step 10 behavioral evidence"
+    ]
+  },
+  "production_architecture": {
+    "result": "PASS",
+    "new_validation_service": false,
+    "new_persistence_architecture": false,
+    "new_totals_architecture": false,
+    "new_balance_architecture": false,
+    "inventory_specific_generic_infrastructure": false,
+    "new_runtime_abstraction": false,
+    "new_posting_semantics": false,
+    "production_changes_required": false
+  },
+  "documentation": {
+    "result": "PASS",
+    "architecture_consistent": true,
+    "api_consistent": true,
+    "validation_evidence_reconciled": true,
+    "no_architecture_amendment_required": true,
+    "evidence": [
+      "Phase 7 Step 1, 8, 9, and 10 documentation reconciled with actual validation"
+    ]
+  },
+  "final_acceptance": {
+    "status": "PHASE_7_REJECTED",
+    "full_test_suite_passed": true,
+    "static_analysis_passed": true,
+    "all_invariants_passed": true,
+    "all_acceptance_criteria_passed": true,
+    "vertical_slice_passed": true,
+    "rebuild_consistency_passed": true,
+    "inventory_validation_passed": true,
+    "production_architecture_unchanged": true,
+    "documentation_reconciled": true,
+    "repository_synchronized": true,
+    "repository_clean": false
+  }
+}
