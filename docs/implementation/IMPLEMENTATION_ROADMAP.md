@@ -870,7 +870,7 @@ The implementation should be capable of representing delayed cost information ac
 
 ## Acceptance Criteria
 
-Phase 7 is complete when:
+Phase 8 is complete when:
 
 1. quantity accounting remains functional independently;
 2. valuation can consume quantity-related facts;
@@ -935,7 +935,7 @@ Inventory Balance Report
 
 ## Acceptance Criteria
 
-Phase 8 is complete when:
+Phase 9 is complete when:
 
 1. a report is defined through metadata;
 2. data sources can be configured;
@@ -986,7 +986,7 @@ The exact processing should be selected based on the first MVP scenario.
 
 ## Acceptance Criteria
 
-Phase 9 is complete when:
+Phase 10 is complete when:
 
 1. a processing can be defined;
 2. the processing can be executed;
@@ -1028,7 +1028,7 @@ Define the initial security model required by the MVP.
 
 ## Acceptance Criteria
 
-Phase 10 is complete when:
+Phase 11 is complete when:
 
 1. a user security context exists;
 2. permissions can be evaluated;
@@ -1063,7 +1063,7 @@ The implementation should follow the Contract-first API principle and Event-Awar
 
 ## Acceptance Criteria
 
-Phase 11 is complete when:
+Phase 12 is complete when:
 
 1. a defined API contract can expose a supported operation;
 2. API requests reach the appropriate runtime boundary;
