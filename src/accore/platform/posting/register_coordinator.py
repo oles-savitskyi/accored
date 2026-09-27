@@ -5,8 +5,10 @@ from collections.abc import Sequence
 from accore.platform.foundation import Identifier
 from accore.platform.object import ObjectInstance
 from accore.platform.persistence import RegisterFactPersistence
+from accore.platform.persistence.errors import PersistenceError, PersistenceIndeterminateError
 from accore.platform.registers import RegisterMutationOrchestrator
 
+from .coordinator import PostingLifecycleOutcome, PostingLifecycleResult, RegisterPostingPlan
 from .movement_set import MovementSet
 
 
@@ -29,18 +31,39 @@ class RegisterPostingResultCoordinator:
         self._persistence = persistence
         self._register_identities = identities
 
-    def establish(self, document: ObjectInstance, movement_set: MovementSet) -> None:
+    def prepare(self, document: ObjectInstance, movement_set: MovementSet) -> RegisterPostingPlan:
         del document
-        self._mutation.establish(movement_set.movements)
+        return RegisterPostingPlan(movements=movement_set)
 
-    def remove(self, document: ObjectInstance) -> None:
-        for register_identity in self._register_identities:
-            movements = self._persistence.find_by_source_document(
-                register_identity,
-                document.identity,
-            )
-            if movements:
-                self._mutation.remove(movements)
+    def establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: RegisterPostingPlan,
+    ) -> PostingLifecycleResult:
+        del document, movement_set
+        try:
+            self._mutation.establish(plan.movements.movements)
+        except PersistenceIndeterminateError as exc:
+            return PostingLifecycleResult(PostingLifecycleOutcome.INDETERMINATE, exc)
+        except PersistenceError as exc:
+            return PostingLifecycleResult(PostingLifecycleOutcome.FAILURE, exc)
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
+    def remove(self, document: ObjectInstance) -> PostingLifecycleResult:
+        try:
+            for register_identity in self._register_identities:
+                movements = self._persistence.find_by_source_document(
+                    register_identity,
+                    document.identity,
+                )
+                if movements:
+                    self._mutation.remove(movements)
+        except PersistenceIndeterminateError as exc:
+            return PostingLifecycleResult(PostingLifecycleOutcome.INDETERMINATE, exc)
+        except PersistenceError as exc:
+            return PostingLifecycleResult(PostingLifecycleOutcome.FAILURE, exc)
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
 
 __all__ = ["RegisterPostingResultCoordinator"]

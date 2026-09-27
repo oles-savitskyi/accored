@@ -6,9 +6,14 @@ from enum import StrEnum
 from typing import Protocol
 
 from accore.platform.foundation import Identifier
+from accore.platform.persistence.errors import (
+    PersistenceError,
+    PersistenceIndeterminateError,
+)
 
 from .errors import ValuationPersistenceError, ValuationValidationError
-from .facts import ValuationConsumption, ValuationFact, ValuationLayer
+from .facts import ValuationConsumption, ValuationFact, ValuationLayer, ValuationReversal
+from .key import ValuationKey
 from .persistence import ValuationFactPersistence, ValuationResultPersistence
 from .plan import (
     ConsumptionPlan,
@@ -34,8 +39,25 @@ class ValuationEstablishmentResult:
     error: Exception | None = None
 
 
-class ValuationCoordinator(Protocol):
+class ValuationRemovalOutcome(StrEnum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    INDETERMINATE = "indeterminate"
+
+
+@dataclass(frozen=True, slots=True)
+class ValuationRemovalResult:
+    outcome: ValuationRemovalOutcome
+    error: Exception | None = None
+
+
+class ValuationLifecycleCoordinator(Protocol):
     def establish(self, plan: ValuationPlan) -> ValuationEstablishmentResult: ...
+
+    def remove(self, document_identity: Identifier) -> ValuationRemovalResult: ...
+
+
+ValuationCoordinator = ValuationLifecycleCoordinator
 
 
 class DefaultValuationCoordinator:
@@ -68,7 +90,7 @@ class DefaultValuationCoordinator:
             self._fact_persistence.append(facts)
             self._result_persistence.append_movements(movements)
 
-            balances: dict[object, CostBalance] = {}
+            balances: dict[ValuationKey, CostBalance] = {}
             for movement in movements:
                 balances[movement.valuation_key] = self._totals_engine.apply(movement)
             for balance in balances.values():
@@ -82,6 +104,165 @@ class DefaultValuationCoordinator:
             return ValuationEstablishmentResult(outcome, exc)
 
         return ValuationEstablishmentResult(ValuationEstablishmentOutcome.SUCCESS)
+
+    def remove(self, document_identity: Identifier) -> ValuationRemovalResult:
+        all_facts = tuple(self._fact_persistence.enumerate())
+
+        document_facts = tuple(
+            fact
+            for fact in all_facts
+            if (
+                isinstance(fact, ValuationLayer)
+                and fact.source_document_identity == document_identity
+            )
+            or (
+                isinstance(fact, ValuationConsumption)
+                and fact.document_identity == document_identity
+            )
+            or (isinstance(fact, ValuationReversal) and fact.document_identity == document_identity)
+        )
+
+        if not document_facts:
+            return ValuationRemovalResult(ValuationRemovalOutcome.SUCCESS)
+
+        all_reversed_ids = {
+            reversal.reversed_identity
+            for reversal in all_facts
+            if isinstance(reversal, ValuationReversal)
+        }
+
+        document_reversals = tuple(
+            fact for fact in document_facts if isinstance(fact, ValuationReversal)
+        )
+        document_reversed_ids = {reversal.reversed_identity for reversal in document_reversals}
+
+        originals = tuple(
+            fact
+            for fact in document_facts
+            if not isinstance(fact, ValuationReversal)
+            and fact.identity not in document_reversed_ids
+        )
+
+        if not originals:
+            return ValuationRemovalResult(ValuationRemovalOutcome.SUCCESS)
+
+        active_consumptions = tuple(
+            fact
+            for fact in all_facts
+            if isinstance(fact, ValuationConsumption) and fact.identity not in all_reversed_ids
+        )
+
+        try:
+            self._validate_removal(
+                document_identity=document_identity,
+                originals=originals,
+                active_consumptions=active_consumptions,
+            )
+
+            reversal_facts, movements = self._build_reversals(
+                document_identity=document_identity,
+                originals=originals,
+            )
+
+            self._fact_persistence.append(reversal_facts)
+            self._result_persistence.append_movements(movements)
+            self._rebuild_derived_state(movements)
+
+        except ValuationValidationError as exc:
+            return ValuationRemovalResult(
+                ValuationRemovalOutcome.FAILURE,
+                exc,
+            )
+        except PersistenceIndeterminateError as exc:
+            return ValuationRemovalResult(
+                ValuationRemovalOutcome.INDETERMINATE,
+                exc,
+            )
+        except PersistenceError as exc:
+            return ValuationRemovalResult(
+                ValuationRemovalOutcome.FAILURE,
+                exc,
+            )
+
+        return ValuationRemovalResult(ValuationRemovalOutcome.SUCCESS)
+
+    def _validate_removal(
+        self,
+        *,
+        document_identity: Identifier,
+        originals: tuple[ValuationFact, ...],
+        active_consumptions: tuple[ValuationConsumption, ...],
+    ) -> None:
+        removed_consumption_ids = {
+            fact.identity for fact in originals if isinstance(fact, ValuationConsumption)
+        }
+
+        for fact in originals:
+            if isinstance(fact, ValuationLayer) and any(
+                consumption.layer_identity == fact.identity
+                and consumption.identity not in removed_consumption_ids
+                and consumption.document_identity != document_identity
+                for consumption in active_consumptions
+            ):
+                raise ValuationValidationError(
+                    "Valuation layer cannot be reversed while another document consumes it."
+                )
+
+    @staticmethod
+    def _build_reversals(
+        *,
+        document_identity: Identifier,
+        originals: tuple[ValuationFact, ...],
+    ) -> tuple[tuple[ValuationFact, ...], tuple[CostMovement, ...]]:
+        reversal_facts: list[ValuationFact] = []
+        movements: list[CostMovement] = []
+
+        for fact in originals:
+            if isinstance(fact, ValuationLayer):
+                source_identity = fact.source_movement_identity
+                quantity = -fact.quantity
+                cost = -fact.total_cost
+            elif isinstance(fact, ValuationConsumption):
+                source_identity = fact.source_identity
+                quantity = fact.quantity
+                cost = fact.cost
+            else:
+                continue
+
+            reversal_facts.append(
+                ValuationReversal(
+                    identity=Identifier.new(),
+                    reversed_identity=fact.identity,
+                    valuation_key=fact.valuation_key,
+                    document_identity=document_identity,
+                    source_identity=source_identity,
+                    created_at=fact.created_at,
+                )
+            )
+            movements.append(
+                CostMovement(
+                    identity=Identifier.new(),
+                    valuation_key=fact.valuation_key,
+                    quantity=quantity,
+                    cost=cost,
+                    source_identity=source_identity,
+                    created_at=fact.created_at,
+                )
+            )
+
+        return tuple(reversal_facts), tuple(movements)
+
+    def _rebuild_derived_state(
+        self,
+        movements: tuple[CostMovement, ...],
+    ) -> None:
+        balances: dict[ValuationKey, CostBalance] = {}
+
+        for movement in movements:
+            balances[movement.valuation_key] = self._totals_engine.apply(movement)
+
+        for balance in balances.values():
+            self._result_persistence.replace_balance(balance)
 
     def _construct(
         self,
@@ -127,6 +308,7 @@ class DefaultValuationCoordinator:
                         layer_identity=layer_identity,
                         quantity=operation.quantity,
                         cost=operation.cost,
+                        document_identity=operation.document_identity,
                         source_identity=operation.source_identity,
                         created_at=operation.created_at,
                     )

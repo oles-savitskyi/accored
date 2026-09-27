@@ -53,6 +53,7 @@ class ConsumptionPlan:
     layer_reference: LayerReference
     quantity: Decimal
     cost: Decimal
+    document_identity: Identifier
     source_identity: Identifier
     created_at: datetime
 
@@ -74,4 +75,20 @@ type ValuationPlanOperation = LayerEstablishmentPlan | ConsumptionPlan
 class ValuationPlan:
     """Immutable deterministic valuation plan produced by valuation preflight."""
 
+    document_identity: Identifier
     operations: tuple[ValuationPlanOperation, ...]
+
+    def __post_init__(self) -> None:
+        for operation in self.operations:
+            if isinstance(operation, ConsumptionPlan):
+                if operation.document_identity != self.document_identity:
+                    raise ValuationValidationError(
+                        "All valuation operations must belong to the plan document."
+                    )
+            elif isinstance(operation, LayerEstablishmentPlan):
+                if operation.source_document_identity != self.document_identity:
+                    raise ValuationValidationError(
+                        "All valuation operations must belong to the plan document."
+                    )
+            else:
+                raise TypeError("ValuationPlan contains an unsupported operation.")

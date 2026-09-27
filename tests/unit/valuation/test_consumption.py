@@ -50,6 +50,7 @@ def make_request(key: ValuationKey, *, quantity: str, timestamp: datetime) -> Co
         identity=Identifier.new(),
         valuation_key=key,
         quantity=Decimal(quantity),
+        document_identity=Identifier.new(),
         source_identity=Identifier.new(),
         occurred_at=timestamp,
     )

@@ -99,6 +99,7 @@ def test_valuation_consumption_accepts_zero_cost(
         layer_identity=Identifier.new(),
         quantity=Decimal(10),
         cost=Decimal(0),
+        document_identity=Identifier.new(),
         source_identity=Identifier.new(),
         created_at=timestamp,
     )
@@ -121,6 +122,7 @@ def test_valuation_consumption_rejects_non_positive_quantity(
             layer_identity=Identifier.new(),
             quantity=Decimal(0),
             cost=Decimal(10),
+            document_identity=Identifier.new(),
             source_identity=Identifier.new(),
             created_at=timestamp,
         )
@@ -140,6 +142,7 @@ def test_valuation_consumption_rejects_negative_cost(
             layer_identity=Identifier.new(),
             quantity=Decimal(10),
             cost=Decimal(-1),
+            document_identity=Identifier.new(),
             source_identity=Identifier.new(),
             created_at=timestamp,
         )
@@ -187,6 +190,7 @@ def test_valuation_reversal_is_immutable(
         identity=Identifier.new(),
         reversed_identity=Identifier.new(),
         valuation_key=valuation_key,
+        document_identity=Identifier.new(),
         source_identity=Identifier.new(),
         created_at=timestamp,
     )
@@ -233,6 +237,7 @@ def test_valuation_fact_union_accepts_all_fact_types(
         layer_identity=layer.identity,
         quantity=Decimal(10),
         cost=Decimal(100),
+        document_identity=Identifier.new(),
         source_identity=Identifier.new(),
         created_at=timestamp,
     )
@@ -259,6 +264,7 @@ def test_valuation_fact_union_accepts_all_fact_types(
         identity=Identifier.new(),
         reversed_identity=consumption.identity,
         valuation_key=valuation_key,
+        document_identity=Identifier.new(),
         source_identity=Identifier.new(),
         created_at=timestamp,
     )

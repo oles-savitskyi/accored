@@ -20,6 +20,7 @@ class ConsumptionRequest:
     identity: Identifier
     valuation_key: ValuationKey
     quantity: Decimal
+    document_identity: Identifier
     source_identity: Identifier
     occurred_at: datetime
 
@@ -94,6 +95,7 @@ class FIFOValuationMethod:
                     layer_identity=layer.identity,
                     quantity=consumed_quantity,
                     cost=consumed_cost,
+                    document_identity=request.document_identity,
                     source_identity=request.source_identity,
                     created_at=request.occurred_at,
                 )

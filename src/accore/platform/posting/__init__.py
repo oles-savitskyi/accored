@@ -1,5 +1,14 @@
+from typing import Any
+
 from accore.platform.posting.api import DefaultPostingAPI, PostingAPI
 from accore.platform.posting.context import DocumentStateProvider, PostingContext, PostingServices
+from accore.platform.posting.coordinator import (
+    PostingLifecycleOutcome,
+    PostingLifecycleResult,
+    PostingResultCoordinator,
+    PostingResultPlan,
+    RegisterPostingPlan,
+)
 from accore.platform.posting.engine import PostingContextFactory, PostingEngine
 from accore.platform.posting.errors import (
     PostingError,
@@ -27,6 +36,7 @@ from accore.platform.posting.register_coordinator import RegisterPostingResultCo
 from accore.platform.posting.result import PostingOutcome, PostingResult
 
 __all__ = [
+    "CompositePostingResultCoordinator",
     "DefaultPostingAPI",
     "DocumentPosted",
     "DocumentReposted",
@@ -46,11 +56,29 @@ __all__ = [
     "PostingHandlerResolutionError",
     "PostingHandlerResolver",
     "PostingIndeterminateError",
+    "PostingLifecycleOutcome",
+    "PostingLifecycleResult",
     "PostingMovementValidationError",
     "PostingOutcome",
     "PostingPersistenceError",
     "PostingResult",
+    "PostingResultCoordinator",
+    "PostingResultPlan",
     "PostingServices",
     "PostingValidationError",
+    "RegisterPostingPlan",
     "RegisterPostingResultCoordinator",
+    "ValuationPostingCoordinator",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name == "CompositePostingResultCoordinator":
+        from accore.platform.posting.composite_coordinator import CompositePostingResultCoordinator
+
+        return CompositePostingResultCoordinator
+    if name == "ValuationPostingCoordinator":
+        from accore.platform.posting.valuation_coordinator import ValuationPostingCoordinator
+
+        return ValuationPostingCoordinator
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

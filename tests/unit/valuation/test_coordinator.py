@@ -12,6 +12,7 @@ from accore.platform.valuation import (
     DefaultValuationCoordinator,
     DefaultValuationPlanValidator,
     LayerEstablishmentPlan,
+    PersistedLayerReference,
     PlannedLayerReference,
     ValuationConsumption,
     ValuationEstablishmentOutcome,
@@ -40,7 +41,10 @@ class FakeFactPersistence:
         return tuple(
             fact
             for fact in self.facts
-            if getattr(fact, "source_document_identity", None) == document_identity
+            if (
+                getattr(fact, "source_document_identity", None) == document_identity
+                or getattr(fact, "document_identity", None) == document_identity
+            )
         )
 
     def find_by_source_movement(self, movement_identity: Identifier) -> tuple[ValuationFact, ...]:
@@ -83,18 +87,20 @@ class FakeResultPersistence:
 
 def establishment_plan() -> tuple[ValuationPlan, PlannedLayerReference]:
     reference = PlannedLayerReference(Identifier.new())
+    document_identity = Identifier.new()
     return (
         ValuationPlan(
-            (
+            document_identity=document_identity,
+            operations=(
                 LayerEstablishmentPlan(
                     reference=reference,
                     valuation_key=KEY,
                     quantity=Decimal(10),
-                    source_document_identity=Identifier.new(),
+                    source_document_identity=document_identity,
                     source_movement_identity=Identifier.new(),
                     created_at=WHEN,
                 ),
-            )
+            ),
         ),
         reference,
     )
@@ -133,17 +139,19 @@ def test_establish_resolves_planned_layer_reference() -> None:
     results = FakeResultPersistence()
     plan, reference = establishment_plan()
     plan = ValuationPlan(
-        plan.operations
+        document_identity=plan.document_identity,
+        operations=plan.operations
         + (
             ConsumptionPlan(
                 valuation_key=KEY,
                 layer_reference=reference,
                 quantity=Decimal(4),
                 cost=Decimal(0),
+                document_identity=plan.document_identity,
                 source_identity=Identifier.new(),
                 created_at=WHEN,
             ),
-        )
+        ),
     )
 
     result = coordinator(facts, results).establish(plan)
@@ -162,17 +170,19 @@ def test_validation_failure_does_not_persist() -> None:
     results = FakeResultPersistence()
     plan, reference = establishment_plan()
     invalid = ValuationPlan(
-        plan.operations
+        document_identity=plan.document_identity,
+        operations=plan.operations
         + (
             ConsumptionPlan(
                 valuation_key=KEY,
                 layer_reference=reference,
                 quantity=Decimal(11),
                 cost=Decimal(0),
+                document_identity=plan.document_identity,
                 source_identity=Identifier.new(),
                 created_at=WHEN,
             ),
-        )
+        ),
     )
 
     result = coordinator(facts, results).establish(invalid)
@@ -227,3 +237,186 @@ def test_result_persistence_failure_after_fact_commit_is_indeterminate() -> None
     assert result.outcome is ValuationEstablishmentOutcome.INDETERMINATE
     assert facts.facts
     assert results.movements
+
+
+def test_remove_reverses_layer_and_consumption_without_mutating_history() -> None:
+    facts = FakeFactPersistence()
+    results = FakeResultPersistence()
+    plan, reference = establishment_plan()
+    plan = ValuationPlan(
+        document_identity=plan.document_identity,
+        operations=plan.operations
+        + (
+            ConsumptionPlan(
+                valuation_key=KEY,
+                layer_reference=reference,
+                quantity=Decimal(4),
+                cost=Decimal(0),
+                document_identity=plan.document_identity,
+                source_identity=Identifier.new(),
+                created_at=WHEN,
+            ),
+        ),
+    )
+
+    value_coordinator = coordinator(facts, results)
+    assert value_coordinator.establish(plan).outcome is ValuationEstablishmentOutcome.SUCCESS
+    original_facts = tuple(facts.facts)
+
+    removal = value_coordinator.remove(plan.document_identity)
+
+    from accore.platform.valuation import ValuationRemovalOutcome, ValuationReversal
+
+    assert removal.outcome is ValuationRemovalOutcome.SUCCESS
+    assert tuple(facts.facts[:2]) == original_facts
+    reversals = tuple(fact for fact in facts.facts[2:] if isinstance(fact, ValuationReversal))
+    assert len(reversals) == 2
+    assert {item.reversed_identity for item in reversals} == {
+        fact.identity for fact in original_facts
+    }
+    assert results.find_balance(KEY) is not None
+    assert results.find_balance(KEY).quantity == Decimal(0)  # type: ignore[union-attr]
+    current_layers = DefaultValuationPlanValidator(facts)._current_layers()
+    assert current_layers == ()
+
+
+def test_remove_is_idempotent_for_already_reversed_document() -> None:
+    facts = FakeFactPersistence()
+    results = FakeResultPersistence()
+    plan, _ = establishment_plan()
+    value_coordinator = coordinator(facts, results)
+    assert value_coordinator.establish(plan).outcome is ValuationEstablishmentOutcome.SUCCESS
+
+    first = value_coordinator.remove(plan.document_identity)
+    second = value_coordinator.remove(plan.document_identity)
+
+    from accore.platform.valuation import ValuationRemovalOutcome
+
+    assert first.outcome is ValuationRemovalOutcome.SUCCESS
+    assert second.outcome is ValuationRemovalOutcome.SUCCESS
+    assert len(facts.facts) == 2
+
+
+def test_remove_consumption_only_restores_available_layer() -> None:
+    facts = FakeFactPersistence()
+    results = FakeResultPersistence()
+    source_document = Identifier.new()
+    layer_document = Identifier.new()
+    reference_identity = Identifier.new()
+    movement_identity = Identifier.new()
+    layer_plan = ValuationPlan(
+        document_identity=layer_document,
+        operations=(
+            LayerEstablishmentPlan(
+                reference=PlannedLayerReference(reference_identity),
+                valuation_key=KEY,
+                quantity=Decimal(10),
+                source_document_identity=layer_document,
+                source_movement_identity=movement_identity,
+                created_at=WHEN,
+            ),
+        ),
+    )
+    value_coordinator = coordinator(facts, results)
+    assert value_coordinator.establish(layer_plan).outcome is ValuationEstablishmentOutcome.SUCCESS
+    layer_identity = facts.facts[0].identity
+
+    consumption_plan = ValuationPlan(
+        document_identity=source_document,
+        operations=(
+            ConsumptionPlan(
+                valuation_key=KEY,
+                layer_reference=PersistedLayerReference(layer_identity),
+                quantity=Decimal(4),
+                cost=Decimal(0),
+                document_identity=source_document,
+                source_identity=Identifier.new(),
+                created_at=WHEN,
+            ),
+        ),
+    )
+    assert (
+        value_coordinator.establish(consumption_plan).outcome
+        is ValuationEstablishmentOutcome.SUCCESS
+    )
+
+    removal = value_coordinator.remove(source_document)
+
+    from accore.platform.valuation import ValuationRemovalOutcome
+
+    assert removal.outcome is ValuationRemovalOutcome.SUCCESS
+    current_layers = DefaultValuationPlanValidator(facts)._current_layers()
+    assert len(current_layers) == 1
+    assert current_layers[0].identity == layer_identity
+    assert current_layers[0].quantity == Decimal(10)
+
+
+def test_remove_layer_succeeds_after_consumption_from_another_document_was_reversed() -> None:
+    facts = FakeFactPersistence()
+    results = FakeResultPersistence()
+
+    layer_document = Identifier.new()
+    consumption_document = Identifier.new()
+    reference_identity = Identifier.new()
+    movement_identity = Identifier.new()
+
+    layer_plan = ValuationPlan(
+        document_identity=layer_document,
+        operations=(
+            LayerEstablishmentPlan(
+                reference=PlannedLayerReference(reference_identity),
+                valuation_key=KEY,
+                quantity=Decimal(10),
+                source_document_identity=layer_document,
+                source_movement_identity=movement_identity,
+                created_at=WHEN,
+            ),
+        ),
+    )
+
+    value_coordinator = coordinator(facts, results)
+
+    assert value_coordinator.establish(layer_plan).outcome is ValuationEstablishmentOutcome.SUCCESS
+
+    layer_identity = facts.facts[0].identity
+
+    consumption_plan = ValuationPlan(
+        document_identity=consumption_document,
+        operations=(
+            ConsumptionPlan(
+                valuation_key=KEY,
+                layer_reference=PersistedLayerReference(layer_identity),
+                quantity=Decimal(4),
+                cost=Decimal(0),
+                document_identity=consumption_document,
+                source_identity=Identifier.new(),
+                created_at=WHEN,
+            ),
+        ),
+    )
+
+    assert (
+        value_coordinator.establish(consumption_plan).outcome
+        is ValuationEstablishmentOutcome.SUCCESS
+    )
+
+    consumption_identity = facts.facts[1].identity
+
+    consumption_removal = value_coordinator.remove(consumption_document)
+
+    from accore.platform.valuation import ValuationRemovalOutcome
+
+    assert consumption_removal.outcome is ValuationRemovalOutcome.SUCCESS
+
+    layer_removal = value_coordinator.remove(layer_document)
+
+    assert layer_removal.outcome is ValuationRemovalOutcome.SUCCESS
+
+    from accore.platform.valuation import ValuationReversal
+
+    reversals = tuple(fact for fact in facts.facts if isinstance(fact, ValuationReversal))
+
+    assert {reversal.reversed_identity for reversal in reversals} == {
+        consumption_identity,
+        layer_identity,
+    }

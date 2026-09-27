@@ -5,7 +5,11 @@ from accore.platform.persistence.errors import PersistenceError, PersistenceInde
 from accore.platform.registers import MovementValidator
 
 from .context import PostingClock, PostingContext, PostingServices
-from .coordinator import PostingResultCoordinator
+from .coordinator import (
+    PostingLifecycleOutcome,
+    PostingLifecycleResult,
+    PostingResultCoordinator,
+)
 from .errors import (
     PostingHandlerError,
     PostingHandlerResolutionError,
@@ -71,29 +75,26 @@ class PostingEngine:
             return PostingResult.failure(PostingMovementValidationError(str(exc)))
 
         try:
-            self._coordinator.establish(document, movement_set)
+            plan = self._coordinator.prepare(document, movement_set)
+            result = self._coordinator.establish(document, movement_set, plan)
+            return self._result_from_lifecycle(result, DocumentPosted(document.identity))
         except PersistenceIndeterminateError as exc:
             return PostingResult.indeterminate(PostingIndeterminateError(str(exc)))
         except PersistenceError as exc:
             return PostingResult.failure(PostingPersistenceError(str(exc)))
         except Exception as exc:  # noqa: BLE001
             return PostingResult.failure(PostingPersistenceError(str(exc)))
-
-        self._events.publish(DocumentPosted(document.identity))
-        return PostingResult.success()
 
     def unpost(self, document: ObjectInstance) -> PostingResult:
         try:
-            self._coordinator.remove(document)
+            result = self._coordinator.remove(document)
+            return self._result_from_lifecycle(result, DocumentUnposted(document.identity))
         except PersistenceIndeterminateError as exc:
             return PostingResult.indeterminate(PostingIndeterminateError(str(exc)))
         except PersistenceError as exc:
             return PostingResult.failure(PostingPersistenceError(str(exc)))
         except Exception as exc:  # noqa: BLE001
             return PostingResult.failure(PostingPersistenceError(str(exc)))
-
-        self._events.publish(DocumentUnposted(document.identity))
-        return PostingResult.success()
 
     def repost(self, document: ObjectInstance) -> PostingResult:
         try:
@@ -105,8 +106,12 @@ class PostingEngine:
             return PostingResult.failure(PostingHandlerError(str(exc)))
 
         try:
-            self._coordinator.remove(document)
-            self._coordinator.establish(document, movement_set)
+            plan = self._coordinator.prepare(document, movement_set)
+            removal = self._coordinator.remove(document)
+            if removal.outcome is not PostingLifecycleOutcome.SUCCESS:
+                return self._result_from_lifecycle(removal, None)
+            establishment = self._coordinator.establish(document, movement_set, plan)
+            return self._result_from_lifecycle(establishment, DocumentReposted(document.identity))
         except PersistenceIndeterminateError as exc:
             return PostingResult.indeterminate(PostingIndeterminateError(str(exc)))
         except PersistenceError as exc:
@@ -114,5 +119,23 @@ class PostingEngine:
         except Exception as exc:  # noqa: BLE001
             return PostingResult.failure(PostingPersistenceError(str(exc)))
 
-        self._events.publish(DocumentReposted(document.identity))
+    def _result_from_lifecycle(
+        self,
+        result: PostingLifecycleResult,
+        event: object | None,
+    ) -> PostingResult:
+        if result.outcome is PostingLifecycleOutcome.INDETERMINATE:
+            return PostingResult.indeterminate(
+                PostingIndeterminateError(str(result.error))
+                if result.error is not None
+                else PostingIndeterminateError("Posting lifecycle outcome is indeterminate.")
+            )
+        if result.outcome is PostingLifecycleOutcome.FAILURE:
+            return PostingResult.failure(
+                PostingPersistenceError(str(result.error))
+                if result.error is not None
+                else PostingPersistenceError("Posting lifecycle operation failed.")
+            )
+        if event is not None:
+            self._events.publish(event)
         return PostingResult.success()

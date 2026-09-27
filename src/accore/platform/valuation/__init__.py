@@ -8,6 +8,9 @@ from .coordinator import (
     ValuationCoordinator,
     ValuationEstablishmentOutcome,
     ValuationEstablishmentResult,
+    ValuationLifecycleCoordinator,
+    ValuationRemovalOutcome,
+    ValuationRemovalResult,
 )
 from .engine import ValuationEngine, ValuationLayerReader
 from .errors import (
@@ -74,11 +77,14 @@ __all__ = [
     "ValuationKey",
     "ValuationLayer",
     "ValuationLayerReader",
+    "ValuationLifecycleCoordinator",
     "ValuationNotFoundError",
     "ValuationPersistenceError",
     "ValuationPlan",
     "ValuationPlanOperation",
     "ValuationPlanValidator",
+    "ValuationRemovalOutcome",
+    "ValuationRemovalResult",
     "ValuationResultPersistence",
     "ValuationReversal",
     "ValuationValidationError",

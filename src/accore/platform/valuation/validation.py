@@ -7,7 +7,7 @@ from typing import Protocol
 from accore.platform.foundation import Identifier
 
 from .errors import ValuationValidationError
-from .facts import ValuationConsumption, ValuationLayer
+from .facts import ValuationConsumption, ValuationLayer, ValuationReversal
 from .persistence import ValuationFactPersistence
 from .plan import (
     ConsumptionPlan,
@@ -63,7 +63,7 @@ class DefaultValuationPlanValidator:
             if not isinstance(operation, ConsumptionPlan):
                 raise TypeError("ValuationPlan contains an unsupported operation.")
             reference = operation.layer_reference
-            state_key: PlannedLayerReference | PersistedLayerReference
+            state_key: Identifier | PlannedLayerReference | PersistedLayerReference
 
             if isinstance(reference, PlannedLayerReference):
                 establishment = planned.get(reference)
@@ -87,7 +87,7 @@ class DefaultValuationPlanValidator:
                     raise ValuationValidationError(
                         "Consumption and referenced layer must use the same valuation key."
                     )
-                state_key = reference
+                state_key = reference.identity
 
             else:
                 raise TypeError("ConsumptionPlan contains an unsupported layer reference.")
@@ -106,8 +106,19 @@ class DefaultValuationPlanValidator:
 
     def _current_layers(self) -> tuple[ValuationLayer, ...]:
         facts = self._facts.enumerate()
-        layers = [fact for fact in facts if isinstance(fact, ValuationLayer)]
-        consumptions = [fact for fact in facts if isinstance(fact, ValuationConsumption)]
+        reversed_ids = {
+            fact.reversed_identity for fact in facts if isinstance(fact, ValuationReversal)
+        }
+        layers = [
+            fact
+            for fact in facts
+            if isinstance(fact, ValuationLayer) and fact.identity not in reversed_ids
+        ]
+        consumptions = [
+            fact
+            for fact in facts
+            if isinstance(fact, ValuationConsumption) and fact.identity not in reversed_ids
+        ]
         consumed_quantity: dict[object, Decimal] = defaultdict(lambda: Decimal(0))
         consumed_cost: dict[object, Decimal] = defaultdict(lambda: Decimal(0))
         for consumption in consumptions:

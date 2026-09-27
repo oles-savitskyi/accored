@@ -39,6 +39,7 @@ class ValuationConsumption:
     layer_identity: Identifier
     quantity: Decimal
     cost: Decimal
+    document_identity: Identifier
     source_identity: Identifier
     created_at: datetime
 
@@ -83,6 +84,7 @@ class ValuationReversal:
     identity: Identifier
     reversed_identity: Identifier
     valuation_key: ValuationKey
+    document_identity: Identifier
     source_identity: Identifier
     created_at: datetime
 

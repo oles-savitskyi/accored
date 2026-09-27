@@ -67,9 +67,15 @@ def test_establish_delegates_complete_movement_set() -> None:
     document = type("Document", (), {"identity": Identifier.new()})()
     mutation = Mutation()
     persistence = Persistence()
-    coordinator = RegisterPostingResultCoordinator(mutation, persistence, (Identifier.new(),))
+    coordinator = RegisterPostingResultCoordinator(
+        mutation,
+        persistence,
+        (Identifier.new(),),
+    )
     movement_set = type("MovementSet", (), {"movements": ("movement",)})()
 
-    coordinator.establish(document, movement_set)
+    plan = coordinator.prepare(document, movement_set)
+
+    coordinator.establish(document, movement_set, plan)
 
     assert mutation.established == [("movement",)]

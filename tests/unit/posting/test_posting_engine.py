@@ -105,17 +105,30 @@ class Coordinator:
         self.effects = {}
         self.fail_with = None
 
-    def establish(self, document, movement_set):
+    def prepare(self, document, movement_set):
+        from accore.platform.posting import RegisterPostingPlan
+
+        del document
+        return RegisterPostingPlan(movements=movement_set)
+
+    def establish(self, document, movement_set, plan):
+        from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
+
+        del movement_set
         if self.fail_with is not None:
             error, self.fail_with = self.fail_with, None
             raise error
-        self.effects[document.identity] = tuple(movement_set.movements)
+        self.effects[document.identity] = tuple(plan.movements.movements)
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
     def remove(self, document):
+        from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
+
         if self.fail_with is not None:
             error, self.fail_with = self.fail_with, None
             raise error
         self.effects.pop(document.identity, None)
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
     def movements_for(self, document):
         return self.effects.get(document.identity, ())

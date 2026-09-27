@@ -48,6 +48,18 @@ class ValuationEngine:
         self._quantity_resource_name = quantity_resource_name
 
     def prepare(self, movement_set: MovementSet) -> ValuationPlan:
+        if not movement_set.movements:
+            raise ValuationValidationError("MovementSet must contain at least one movement.")
+
+        document_identity = movement_set.movements[0].source_document_identity
+        if any(
+            movement.source_document_identity != document_identity
+            for movement in movement_set.movements[1:]
+        ):
+            raise ValuationValidationError(
+                "All movements in a valuation plan must belong to one posting document."
+            )
+
         operations: list[LayerEstablishmentPlan | ConsumptionPlan] = []
         available_layers: dict[ValuationKey, tuple[ValuationLayer, ...]] = {}
         planned_references: dict[Identifier, PlannedLayerReference] = {}
@@ -96,6 +108,7 @@ class ValuationEngine:
                         identity=Identifier.new(),
                         valuation_key=valuation_key,
                         quantity=quantity,
+                        document_identity=document_identity,
                         source_identity=movement.identity,
                         occurred_at=occurred_at,
                     ),
@@ -116,6 +129,7 @@ class ValuationEngine:
                         ),
                         quantity=consumption.quantity,
                         cost=consumption.cost,
+                        document_identity=document_identity,
                         source_identity=consumption.source_identity,
                         created_at=consumption.created_at,
                     )
@@ -127,7 +141,10 @@ class ValuationEngine:
                 f"Unsupported movement type for valuation: {movement.movement_type}."
             )
 
-        return ValuationPlan(operations=tuple(operations))
+        return ValuationPlan(
+            document_identity=document_identity,
+            operations=tuple(operations),
+        )
 
     def _valuation_key(self, movement: Movement) -> ValuationKey:
         dimensions: dict[str, str] = {}

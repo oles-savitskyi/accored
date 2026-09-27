@@ -36,8 +36,10 @@ class InMemoryValuationFactPersistence:
         return tuple(
             fact
             for fact in self._facts
-            if getattr(fact, "source_document_identity", None) == document_identity
-            or getattr(fact, "source_identity", None) == document_identity
+            if (
+                getattr(fact, "source_document_identity", None) == document_identity
+                or getattr(fact, "document_identity", None) == document_identity
+            )
         )
 
     def find_by_source_movement(
@@ -132,6 +134,7 @@ def _consumption() -> ValuationConsumption:
         layer_identity=_identifier(),
         quantity=Decimal(10),
         cost=Decimal(0),
+        document_identity=_identifier(),
         source_identity=_identifier(),
         created_at=_created_at(),
     )
@@ -164,6 +167,7 @@ def _reversal() -> ValuationReversal:
         identity=_identifier(),
         reversed_identity=_identifier(),
         valuation_key=_valuation_key(),
+        document_identity=_identifier(),
         source_identity=_identifier(),
         created_at=_created_at(),
     )
@@ -210,11 +214,15 @@ def test_fact_persistence_finds_by_source_document() -> None:
 
     layer = _layer()
     consumption = _consumption()
+    other_layer = _layer()
 
-    persistence.append((layer, consumption))
+    persistence.append((layer, consumption, other_layer))
 
     assert persistence.find_by_source_document(layer.source_document_identity) == (layer,)
-    assert persistence.find_by_source_document(consumption.source_identity) == (consumption,)
+    assert persistence.find_by_source_document(consumption.document_identity) == (consumption,)
+    assert persistence.find_by_source_document(other_layer.source_document_identity) == (
+        other_layer,
+    )
 
     assert persistence.find_by_source_document(_identifier()) == ()
 
