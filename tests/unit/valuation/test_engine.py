@@ -22,11 +22,38 @@ from accore.platform.valuation import (
     PersistedLayerReference,
     PlannedLayerReference,
     ValuationEngine,
+    ValuationInput,
     ValuationInsufficientQuantityError,
     ValuationKey,
     ValuationLayer,
     ValuationValidationError,
 )
+
+
+class FakeValuationInputProvider:
+    def provide(self, movement: Movement) -> ValuationInput:
+        from accore.platform.valuation import ValuationValidationError
+
+        product = movement.dimensions.get("product")
+        warehouse = movement.dimensions.get("warehouse")
+        quantity = movement.resources.get("quantity")
+        if not isinstance(product, str) or not isinstance(warehouse, str):
+            raise ValuationValidationError("Invalid valuation dimensions")
+        if not isinstance(quantity, Decimal) or quantity <= 0:
+            raise ValuationValidationError("requires a positive Decimal quantity")
+        if movement.accounting_time is None:
+            raise ValuationValidationError("requires accounting_time")
+        return ValuationInput(
+            valuation_key=ValuationKey({"product": product, "warehouse": warehouse}),
+            quantity=quantity,
+            document_identity=movement.source_document_identity,
+            source_identity=movement.identity,
+            occurred_at=movement.accounting_time,
+        )
+
+
+def engine(reader: FakeLayerReader) -> ValuationEngine:
+    return ValuationEngine(FakeValuationInputProvider(), reader, FIFOValuationMethod())
 
 
 @dataclass
@@ -85,7 +112,7 @@ def test_prepare_income_creates_layer_establishment_plan() -> None:
     income = movement(MovementType.INCOME, quantity="7")
     reader = FakeLayerReader({}, [])
 
-    plan = ValuationEngine(reader, FIFOValuationMethod()).prepare(MovementSet((income,)))
+    plan = engine(reader).prepare(MovementSet((income,)))
 
     assert reader.calls == []
     assert len(plan.operations) == 1
@@ -114,7 +141,7 @@ def test_prepare_expense_reads_layers_and_creates_consumption_plan() -> None:
     )
     reader = FakeLayerReader({key: (existing_layer,)}, [])
 
-    plan = ValuationEngine(reader, FIFOValuationMethod()).prepare(MovementSet((expense,)))
+    plan = engine(reader).prepare(MovementSet((expense,)))
 
     assert reader.calls == [key]
     assert len(plan.operations) == 1
@@ -148,9 +175,7 @@ def test_prepare_preserves_movement_order() -> None:
         source_document_identity=document_identity,
     )
 
-    plan = ValuationEngine(FakeLayerReader({}, []), FIFOValuationMethod()).prepare(
-        MovementSet((first, second))
-    )
+    plan = engine(FakeLayerReader({}, [])).prepare(MovementSet((first, second)))
 
     assert plan.document_identity == document_identity
     assert [operation.quantity for operation in plan.operations] == [Decimal(2), Decimal(3)]
@@ -177,7 +202,7 @@ def test_prepare_reuses_reader_result_and_consumes_remaining_layers_for_multiple
     )
     reader = FakeLayerReader({key: (existing_layer,)}, [])
 
-    plan = ValuationEngine(reader, FIFOValuationMethod()).prepare(MovementSet((first, second)))
+    plan = engine(reader).prepare(MovementSet((first, second)))
 
     assert reader.calls == [key]
     assert [operation.quantity for operation in plan.operations] == [
@@ -220,37 +245,31 @@ def test_prepare_fails_without_sufficient_layers() -> None:
     )
 
     with pytest.raises(ValuationInsufficientQuantityError):
-        ValuationEngine(reader, FIFOValuationMethod()).prepare(MovementSet((expense,)))
+        engine(reader).prepare(MovementSet((expense,)))
 
 
-def test_prepare_requires_positive_decimal_quantity() -> None:
+def test_input_provider_rejects_non_positive_quantity() -> None:
     invalid = movement(MovementType.INCOME, quantity="0")
 
     with pytest.raises(ValuationValidationError, match="positive Decimal"):
-        ValuationEngine(FakeLayerReader({}, []), FIFOValuationMethod()).prepare(
-            MovementSet((invalid,))
-        )
+        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)))
 
 
-def test_prepare_requires_accounting_time() -> None:
+def test_input_provider_rejects_missing_accounting_time() -> None:
     invalid = movement(MovementType.INCOME, accounting_time=None)
     object.__setattr__(invalid, "accounting_time", None)
 
     with pytest.raises(ValuationValidationError, match="accounting_time"):
-        ValuationEngine(FakeLayerReader({}, []), FIFOValuationMethod()).prepare(
-            MovementSet((invalid,))
-        )
+        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)))
 
 
-def test_prepare_rejects_non_string_dimension_values() -> None:
+def test_input_provider_rejects_non_string_dimensions() -> None:
     invalid = movement(MovementType.INCOME)
     invalid_dimensions = MovementDimensions.from_mapping({"product": "PR-01", "warehouse": 123})
     object.__setattr__(invalid, "dimensions", invalid_dimensions)
 
     with pytest.raises(ValuationValidationError, match="Invalid valuation dimensions"):
-        ValuationEngine(FakeLayerReader({}, []), FIFOValuationMethod()).prepare(
-            MovementSet((invalid,))
-        )
+        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)))
 
 
 def test_prepare_income_then_expense_references_planned_layer() -> None:
@@ -263,7 +282,7 @@ def test_prepare_income_then_expense_references_planned_layer() -> None:
     )
     reader = FakeLayerReader({}, [])
 
-    plan = ValuationEngine(reader, FIFOValuationMethod()).prepare(MovementSet((income, expense)))
+    plan = engine(reader).prepare(MovementSet((income, expense)))
 
     assert len(plan.operations) == 2
     layer_plan = plan.operations[0]
@@ -275,3 +294,22 @@ def test_prepare_income_then_expense_references_planned_layer() -> None:
     assert consumption_plan.quantity == Decimal(4)
     assert consumption_plan.cost == Decimal(0)
     assert reader.calls == []
+
+
+def test_valuation_input_is_pure_semantic_input() -> None:
+    source = movement(MovementType.INCOME, quantity="3")
+    assert source.accounting_time is not None
+
+    value = ValuationInput(
+        valuation_key=ValuationKey({"product": "PR-01", "warehouse": "WH-01"}),
+        quantity=Decimal(3),
+        document_identity=source.source_document_identity,
+        source_identity=source.identity,
+        occurred_at=source.accounting_time,
+    )
+
+    assert value.quantity == Decimal(3)
+    assert value.document_identity == source.source_document_identity
+    assert value.source_identity == source.identity
+    assert value.occurred_at == source.accounting_time
+    assert not hasattr(value, "layers")

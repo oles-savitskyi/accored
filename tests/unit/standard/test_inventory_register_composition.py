@@ -207,3 +207,79 @@ def test_standard_bootstrap_composition_repost_replaces_persisted_effect() -> No
     new_movement = persistence.movements[new_identity]
 
     assert new_movement == old_movement
+
+
+def test_standard_bootstrap_composes_register_and_valuation_posting() -> None:
+    from standard.valuation import (
+        StandardValuationFactPersistence,
+        StandardValuationResultPersistence,
+    )
+
+    register_persistence = InMemoryPersistence()
+    fact_persistence = StandardValuationFactPersistence()
+    result_persistence = StandardValuationResultPersistence()
+    document = make_document()
+    composition = StandardConfigurationBootstrap().compose_inventory_posting_platform(
+        register_persistence,
+        fact_persistence,
+        result_persistence,
+    )
+    resolver = MappingPostingHandlerResolver(
+        {document.object_type.metadata_identity(): GoodsReceiptPostingHandler()}
+    )
+    engine = PostingEngine(
+        resolver,
+        PostingContextFactory(
+            PostingServices(StateProvider(make_state("2.5"))),
+            FixedClock(datetime(2026, 9, 24, 12, 0, tzinfo=UTC)),
+        ),
+        composition.register.movement_validator,
+        composition.posting_result_coordinator,
+    )
+
+    result = engine.post(document)
+
+    assert result.outcome is PostingOutcome.SUCCESS
+    assert len(register_persistence.movements) == 1
+    facts = fact_persistence.find_by_source_document(document.identity)
+    assert len(facts) == 1
+    assert facts[0].source_document_identity == document.identity
+    assert composition.valuation_engine is not None
+    assert result_persistence.find_balance(facts[0].valuation_key) is not None
+
+
+def test_standard_bootstrap_composite_repost_reverses_old_valuation_effect() -> None:
+    from standard.valuation import (
+        StandardValuationFactPersistence,
+        StandardValuationResultPersistence,
+    )
+
+    register_persistence = InMemoryPersistence()
+    fact_persistence = StandardValuationFactPersistence()
+    result_persistence = StandardValuationResultPersistence()
+    document = make_document()
+    composition = StandardConfigurationBootstrap().compose_inventory_posting_platform(
+        register_persistence,
+        fact_persistence,
+        result_persistence,
+    )
+    resolver = MappingPostingHandlerResolver(
+        {document.object_type.metadata_identity(): GoodsReceiptPostingHandler()}
+    )
+    engine = PostingEngine(
+        resolver,
+        PostingContextFactory(
+            PostingServices(StateProvider(make_state("2.5"))),
+            FixedClock(datetime(2026, 9, 24, 12, 0, tzinfo=UTC)),
+        ),
+        composition.register.movement_validator,
+        composition.posting_result_coordinator,
+    )
+
+    assert engine.post(document).outcome is PostingOutcome.SUCCESS
+    assert engine.repost(document).outcome is PostingOutcome.SUCCESS
+
+    facts = fact_persistence.find_by_source_document(document.identity)
+    assert len(facts) == 3
+    assert len([fact for fact in facts if fact.__class__.__name__ == "ValuationReversal"]) == 1
+    assert result_persistence.find_balance(facts[-1].valuation_key).quantity == Decimal("2.5")

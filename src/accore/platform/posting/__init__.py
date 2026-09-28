@@ -6,6 +6,7 @@ from accore.platform.posting.coordinator import (
     PostingLifecycleOutcome,
     PostingLifecycleResult,
     PostingResultCoordinator,
+    PostingResultParticipant,
     PostingResultPlan,
     RegisterPostingPlan,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "PostingPersistenceError",
     "PostingResult",
     "PostingResultCoordinator",
+    "PostingResultParticipant",
     "PostingResultPlan",
     "PostingServices",
     "PostingValidationError",

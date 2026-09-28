@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from accore.platform.foundation import Identifier
 from accore.platform.object import ObjectInstance
 from accore.platform.valuation import (
     ValuationEngine,
@@ -31,15 +30,23 @@ class ValuationPostingCoordinator:
             raise ValueError("Posting movements must belong to the posting document.")
         return self._engine.prepare(movement_set)
 
-    def establish(self, plan: ValuationPlan) -> PostingLifecycleResult:
+    def establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: object,
+    ) -> PostingLifecycleResult:
+        del document, movement_set
+        if not isinstance(plan, ValuationPlan):
+            raise TypeError("Valuation participant received an invalid posting plan.")
         result = self._lifecycle.establish(plan)
         return PostingLifecycleResult(
             PostingLifecycleOutcome(result.outcome.value),
             result.error,
         )
 
-    def remove(self, document_identity: Identifier) -> PostingLifecycleResult:
-        result = self._lifecycle.remove(document_identity)
+    def remove(self, document: ObjectInstance) -> PostingLifecycleResult:
+        result = self._lifecycle.remove(document.identity)
         return PostingLifecycleResult(
             PostingLifecycleOutcome(result.outcome.value),
             result.error,

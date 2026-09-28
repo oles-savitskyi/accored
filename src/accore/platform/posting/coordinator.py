@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 from accore.platform.object import ObjectInstance
 
 from .movement_set import MovementSet
-
-if TYPE_CHECKING:
-    from accore.platform.valuation import ValuationPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,10 +18,9 @@ class RegisterPostingPlan:
 
 @dataclass(frozen=True, slots=True)
 class PostingResultPlan:
-    """Immutable composite posting plan prepared before destructive lifecycle work."""
+    """Opaque immutable plan containing ordered participant preparations."""
 
-    register: RegisterPostingPlan
-    valuation: ValuationPlan
+    participant_plans: tuple[object, ...]
 
 
 class PostingLifecycleOutcome(StrEnum):
@@ -37,6 +33,25 @@ class PostingLifecycleOutcome(StrEnum):
 class PostingLifecycleResult:
     outcome: PostingLifecycleOutcome
     error: Exception | None = None
+
+
+class PostingResultParticipant(Protocol):
+    """One independent posting-result lifecycle participant."""
+
+    def prepare(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+    ) -> object: ...
+
+    def establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: object,
+    ) -> PostingLifecycleResult: ...
+
+    def remove(self, document: ObjectInstance) -> PostingLifecycleResult: ...
 
 
 class PostingResultCoordinator(Protocol):

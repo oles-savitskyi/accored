@@ -14,7 +14,11 @@ from accore.platform.configuration import (
 )
 from accore.platform.metadata import MetadataCompiler
 from accore.platform.persistence import RegisterFactPersistence
-from accore.platform.posting import RegisterPostingResultCoordinator
+from accore.platform.posting import (
+    CompositePostingResultCoordinator,
+    RegisterPostingResultCoordinator,
+    ValuationPostingCoordinator,
+)
 from accore.platform.registers import (
     BalanceQueryService,
     DefaultBalanceQueryService,
@@ -32,8 +36,21 @@ from accore.platform.registers import (
     TotalsMaintenanceCoordinator,
 )
 from accore.platform.runtime.resolution import RuntimeResolver
+from accore.platform.valuation import (
+    DefaultCostTotalsEngine,
+    DefaultValuationCoordinator,
+    DefaultValuationPlanValidator,
+    FIFOValuationMethod,
+    ValuationEngine,
+)
 from standard.definitions.catalogs import standard_catalog_definitions
 from standard.registers.inventory import inventory_register_configuration
+from standard.valuation import (
+    InventoryValuationInputProvider,
+    InventoryValuationKeyMapper,
+    StandardValuationFactPersistence,
+    StandardValuationResultPersistence,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +62,15 @@ class _InventoryRegisterPlatformComposition:
     posting_result_coordinator: RegisterPostingResultCoordinator
     movement_query: MovementQueryService
     balance_query: BalanceQueryService
+
+
+@dataclass(frozen=True, slots=True)
+class _InventoryPostingPlatformComposition:
+    register: _InventoryRegisterPlatformComposition
+    valuation_engine: ValuationEngine
+    valuation_lifecycle: DefaultValuationCoordinator
+    valuation_posting: ValuationPostingCoordinator
+    posting_result_coordinator: CompositePostingResultCoordinator
 
 
 class StandardConfigurationBootstrap:
@@ -112,4 +138,43 @@ class StandardConfigurationBootstrap:
             posting_result_coordinator=posting_result_coordinator,
             movement_query=DefaultMovementQueryService(persistence),
             balance_query=DefaultBalanceQueryService(totals_engine),
+        )
+
+    def compose_inventory_posting_platform(
+        self,
+        register_persistence: RegisterFactPersistence,
+        valuation_fact_persistence: StandardValuationFactPersistence,
+        valuation_result_persistence: StandardValuationResultPersistence,
+    ) -> _InventoryPostingPlatformComposition:
+        """Compose Inventory Register and Valuation into one posting coordinator."""
+        register = self.compose_inventory_register_platform(register_persistence)
+        fact_persistence = valuation_fact_persistence
+        result_persistence = valuation_result_persistence
+
+        key_mapper = InventoryValuationKeyMapper()
+        input_provider = InventoryValuationInputProvider(key_mapper)
+        valuation_engine = ValuationEngine(
+            input_provider=input_provider,
+            layer_reader=fact_persistence,
+            method=FIFOValuationMethod(),
+        )
+        totals_engine = DefaultCostTotalsEngine()
+        validator = DefaultValuationPlanValidator(fact_persistence)
+        lifecycle = DefaultValuationCoordinator(
+            fact_persistence=fact_persistence,
+            result_persistence=result_persistence,
+            totals_engine=totals_engine,
+            validator=validator,
+        )
+        valuation_posting = ValuationPostingCoordinator(valuation_engine, lifecycle)
+        posting_result_coordinator = CompositePostingResultCoordinator(
+            (register.posting_result_coordinator, valuation_posting)
+        )
+
+        return _InventoryPostingPlatformComposition(
+            register=register,
+            valuation_engine=valuation_engine,
+            valuation_lifecycle=lifecycle,
+            valuation_posting=valuation_posting,
+            posting_result_coordinator=posting_result_coordinator,
         )

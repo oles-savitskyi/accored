@@ -39,9 +39,11 @@ class RegisterPostingResultCoordinator:
         self,
         document: ObjectInstance,
         movement_set: MovementSet,
-        plan: RegisterPostingPlan,
+        plan: object,
     ) -> PostingLifecycleResult:
         del document, movement_set
+        if not isinstance(plan, RegisterPostingPlan):
+            raise TypeError("Register participant received an invalid posting plan.")
         try:
             self._mutation.establish(plan.movements.movements)
         except PersistenceIndeterminateError as exc:
