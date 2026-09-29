@@ -21,18 +21,30 @@ from .errors import (
     ValuationPersistenceError,
     ValuationValidationError,
 )
+from .fact_identity import DefaultValuationFactIdentityFactory
 from .facts import (
     ValuationAdjustment,
     ValuationAllocation,
     ValuationConsumption,
     ValuationFact,
+    ValuationFactIdentityFactory,
+    ValuationFactType,
     ValuationLayer,
     ValuationReversal,
 )
 from .input import ValuationInput
 from .input_provider import ValuationInputProvider, ValuationKeyMapper
 from .key import ValuationKey
-from .persistence import ValuationFactPersistence, ValuationResultPersistence
+from .operations import (
+    ValuationOperationIdentity,
+    ValuationOperationRecord,
+    ValuationOperationType,
+)
+from .persistence import (
+    ValuationFactPersistence,
+    ValuationOperationPersistence,
+    ValuationResultPersistence,
+)
 from .plan import (
     ConsumptionPlan,
     LayerEstablishmentPlan,
@@ -41,6 +53,26 @@ from .plan import (
     PlannedLayerReference,
     ValuationPlan,
     ValuationPlanOperation,
+)
+from .rebuild import (
+    DefaultValuationCostMovementIdentityFactory,
+    DefaultValuationFactToCostMovementProjector,
+    DefaultValuationRebuilder,
+    ValuationCostMovementIdentityFactory,
+    ValuationCostMovementRole,
+    ValuationFactToCostMovementProjector,
+    ValuationRebuilder,
+    ValuationRebuildOutcome,
+    ValuationRebuildResult,
+)
+from .recovery import (
+    DefaultValuationOperationRecoveryService,
+    ValuationFactRecoveryOutcome,
+    ValuationFactRecoveryResult,
+    ValuationFactRecoveryService,
+    ValuationOperationRecoveryService,
+    ValuationRecoveryOutcome,
+    ValuationRecoveryResult,
 )
 from .results import CostBalance, CostMovement
 from .totals import CostTotalsEngine, CostTotalsReader, DefaultCostTotalsEngine
@@ -55,7 +87,12 @@ __all__ = [
     "CostTotalsReader",
     "DefaultCostTotalsEngine",
     "DefaultValuationCoordinator",
+    "DefaultValuationCostMovementIdentityFactory",
+    "DefaultValuationFactIdentityFactory",
+    "DefaultValuationFactToCostMovementProjector",
+    "DefaultValuationOperationRecoveryService",
     "DefaultValuationPlanValidator",
+    "DefaultValuationRebuilder",
     "FIFOValuationMethod",
     "LayerEstablishmentPlan",
     "LayerReference",
@@ -67,12 +104,20 @@ __all__ = [
     "ValuationConflictError",
     "ValuationConsumption",
     "ValuationCoordinator",
+    "ValuationCostMovementIdentityFactory",
+    "ValuationCostMovementRole",
     "ValuationEngine",
     "ValuationError",
     "ValuationEstablishmentOutcome",
     "ValuationEstablishmentResult",
     "ValuationFact",
+    "ValuationFactIdentityFactory",
     "ValuationFactPersistence",
+    "ValuationFactRecoveryOutcome",
+    "ValuationFactRecoveryResult",
+    "ValuationFactRecoveryService",
+    "ValuationFactToCostMovementProjector",
+    "ValuationFactType",
     "ValuationInput",
     "ValuationInputProvider",
     "ValuationInsufficientQuantityError",
@@ -82,10 +127,20 @@ __all__ = [
     "ValuationLayerReader",
     "ValuationLifecycleCoordinator",
     "ValuationNotFoundError",
+    "ValuationOperationIdentity",
+    "ValuationOperationPersistence",
+    "ValuationOperationRecord",
+    "ValuationOperationRecoveryService",
+    "ValuationOperationType",
     "ValuationPersistenceError",
     "ValuationPlan",
     "ValuationPlanOperation",
     "ValuationPlanValidator",
+    "ValuationRebuildOutcome",
+    "ValuationRebuildResult",
+    "ValuationRebuilder",
+    "ValuationRecoveryOutcome",
+    "ValuationRecoveryResult",
     "ValuationRemovalOutcome",
     "ValuationRemovalResult",
     "ValuationResultPersistence",

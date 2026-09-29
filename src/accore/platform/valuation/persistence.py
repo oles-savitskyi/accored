@@ -7,7 +7,39 @@ from accore.platform.foundation import Identifier
 
 from .facts import ValuationFact
 from .key import ValuationKey
+from .operations import ValuationOperationIdentity, ValuationOperationRecord
 from .results import CostBalance, CostMovement
+
+
+class ValuationOperationPersistence(Protocol):
+    """Append-only persistence boundary for authoritative valuation operations."""
+
+    def append(
+        self,
+        operation: ValuationOperationRecord,
+    ) -> None:
+        """Append an operation, idempotently accepting an identical existing record."""
+        ...
+
+    def find(
+        self,
+        identity: ValuationOperationIdentity,
+    ) -> ValuationOperationRecord | None:
+        """Return the authoritative operation record, if it exists."""
+        ...
+
+    def find_by_document(
+        self,
+        document_identity: Identifier,
+    ) -> tuple[ValuationOperationRecord, ...]:
+        """Return authoritative operations associated with a document."""
+        ...
+
+    def enumerate(
+        self,
+    ) -> tuple[ValuationOperationRecord, ...]:
+        """Return all authoritative operation records."""
+        ...
 
 
 class ValuationFactPersistence(Protocol):
@@ -17,7 +49,14 @@ class ValuationFactPersistence(Protocol):
         self,
         facts: Sequence[ValuationFact],
     ) -> None:
-        """Append immutable valuation facts."""
+        """Append immutable valuation facts idempotently by fact identity."""
+        ...
+
+    def find(
+        self,
+        identity: Identifier,
+    ) -> ValuationFact | None:
+        """Return the authoritative valuation fact, if it exists."""
         ...
 
     def find_by_source_document(
@@ -65,11 +104,31 @@ class ValuationResultPersistence(Protocol):
         """Replace the materialized balance for a valuation key."""
         ...
 
+    def find_movement(
+        self,
+        identity: Identifier,
+    ) -> CostMovement | None:
+        """Return one derived cost movement by deterministic identity."""
+        ...
+
     def find_movements(
         self,
         valuation_key: ValuationKey,
     ) -> tuple[CostMovement, ...]:
         """Return derived cost movements for a valuation key."""
+        ...
+
+    def enumerate_movements(
+        self,
+    ) -> tuple[CostMovement, ...]:
+        """Return all derived cost movements."""
+        ...
+
+    def reconcile_movements(
+        self,
+        movements: Sequence[CostMovement],
+    ) -> None:
+        """Replace the complete derived movement projection."""
         ...
 
     def find_balance(

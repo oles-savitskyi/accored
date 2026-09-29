@@ -3,11 +3,35 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
+from typing import Protocol
 
 from accore.platform.foundation import Identifier
 
 from .errors import ValuationValidationError
 from .key import ValuationKey
+from .operations import ValuationOperationIdentity
+
+
+class ValuationFactType(StrEnum):
+    """Lifecycle fact kinds participating in deterministic identity derivation."""
+
+    LAYER = "layer"
+    CONSUMPTION = "consumption"
+    ADJUSTMENT = "adjustment"
+    ALLOCATION = "allocation"
+    REVERSAL = "reversal"
+
+
+class ValuationFactIdentityFactory(Protocol):
+    """Derive deterministic identities for lifecycle valuation facts."""
+
+    def for_operation_fact(
+        self,
+        operation_identity: ValuationOperationIdentity,
+        fact_kind: ValuationFactType,
+        semantic_key: tuple[object, ...],
+    ) -> Identifier: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +45,7 @@ class ValuationLayer:
     source_document_identity: Identifier
     source_movement_identity: Identifier
     created_at: datetime
+    operation_identity: ValuationOperationIdentity | None = None
 
     def __post_init__(self) -> None:
         if self.quantity <= Decimal(0):
@@ -42,6 +67,7 @@ class ValuationConsumption:
     document_identity: Identifier
     source_identity: Identifier
     created_at: datetime
+    operation_identity: ValuationOperationIdentity | None = None
 
     def __post_init__(self) -> None:
         if self.quantity <= Decimal(0):
@@ -87,6 +113,7 @@ class ValuationReversal:
     document_identity: Identifier
     source_identity: Identifier
     created_at: datetime
+    operation_identity: ValuationOperationIdentity | None = None
 
 
 type ValuationFact = (

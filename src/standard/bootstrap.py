@@ -40,6 +40,7 @@ from accore.platform.valuation import (
     DefaultCostTotalsEngine,
     DefaultValuationCoordinator,
     DefaultValuationPlanValidator,
+    DefaultValuationRebuilder,
     FIFOValuationMethod,
     ValuationEngine,
 )
@@ -49,6 +50,7 @@ from standard.valuation import (
     InventoryValuationInputProvider,
     InventoryValuationKeyMapper,
     StandardValuationFactPersistence,
+    StandardValuationOperationPersistence,
     StandardValuationResultPersistence,
 )
 
@@ -70,6 +72,7 @@ class _InventoryPostingPlatformComposition:
     valuation_engine: ValuationEngine
     valuation_lifecycle: DefaultValuationCoordinator
     valuation_posting: ValuationPostingCoordinator
+    valuation_rebuilder: DefaultValuationRebuilder
     posting_result_coordinator: CompositePostingResultCoordinator
 
 
@@ -153,6 +156,7 @@ class StandardConfigurationBootstrap:
 
         key_mapper = InventoryValuationKeyMapper()
         input_provider = InventoryValuationInputProvider(key_mapper)
+        operation_persistence = StandardValuationOperationPersistence()
         valuation_engine = ValuationEngine(
             input_provider=input_provider,
             layer_reader=fact_persistence,
@@ -162,11 +166,17 @@ class StandardConfigurationBootstrap:
         validator = DefaultValuationPlanValidator(fact_persistence)
         lifecycle = DefaultValuationCoordinator(
             fact_persistence=fact_persistence,
+            operation_persistence=operation_persistence,
             result_persistence=result_persistence,
             totals_engine=totals_engine,
             validator=validator,
         )
         valuation_posting = ValuationPostingCoordinator(valuation_engine, lifecycle)
+        valuation_rebuilder = DefaultValuationRebuilder(
+            fact_persistence=fact_persistence,
+            result_persistence=result_persistence,
+            totals_engine=totals_engine,
+        )
         posting_result_coordinator = CompositePostingResultCoordinator(
             (register.posting_result_coordinator, valuation_posting)
         )
@@ -176,5 +186,6 @@ class StandardConfigurationBootstrap:
             valuation_engine=valuation_engine,
             valuation_lifecycle=lifecycle,
             valuation_posting=valuation_posting,
+            valuation_rebuilder=valuation_rebuilder,
             posting_result_coordinator=posting_result_coordinator,
         )
