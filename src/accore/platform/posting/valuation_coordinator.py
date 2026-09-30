@@ -56,6 +56,25 @@ class ValuationPostingCoordinator:
         )
         return self._engine.prepare(movement_set, valuation_context)
 
+    def prepare_establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: object,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult:
+        del document, movement_set
+        if not isinstance(plan, ValuationPlan):
+            raise TypeError("Valuation participant received an invalid posting plan.")
+        valuation_operation_identity = ValuationOperationIdentity(
+            self._operation_identity_factory.derive(operation_identity, "valuation", "establish")
+        )
+        result = self._lifecycle.prepare_establish(plan, valuation_operation_identity)
+        return PostingLifecycleResult(
+            PostingLifecycleOutcome(result.outcome.value),
+            result.error,
+        )
+
     def establish(
         self,
         document: ObjectInstance,
@@ -73,6 +92,30 @@ class ValuationPostingCoordinator:
         return PostingLifecycleResult(
             PostingLifecycleOutcome(result.outcome.value),
             result.error,
+        )
+
+    def recover(
+        self,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult:
+        remove_identity = ValuationOperationIdentity(
+            self._operation_identity_factory.derive(operation_identity, "valuation", "remove")
+        )
+        remove_result = self._lifecycle.recover(remove_identity)
+        mapped_remove = PostingLifecycleResult(
+            PostingLifecycleOutcome(remove_result.outcome.value),
+            remove_result.error,
+        )
+        if mapped_remove.outcome is not PostingLifecycleOutcome.SUCCESS:
+            return mapped_remove
+
+        establish_identity = ValuationOperationIdentity(
+            self._operation_identity_factory.derive(operation_identity, "valuation", "establish")
+        )
+        establish_result = self._lifecycle.recover(establish_identity)
+        return PostingLifecycleResult(
+            PostingLifecycleOutcome(establish_result.outcome.value),
+            establish_result.error,
         )
 
     def remove(

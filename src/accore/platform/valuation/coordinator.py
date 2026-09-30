@@ -156,6 +156,18 @@ def _remove_fingerprint(
     )
 
 
+class ValuationEstablishPreparationOutcome(StrEnum):
+    SUCCESS = "success"
+    FAILURE = "failure"
+    INDETERMINATE = "indeterminate"
+
+
+@dataclass(frozen=True, slots=True)
+class ValuationEstablishPreparationResult:
+    outcome: ValuationEstablishPreparationOutcome
+    error: Exception | None = None
+
+
 class ValuationEstablishmentOutcome(StrEnum):
     SUCCESS = "success"
     FAILURE = "failure"
@@ -181,6 +193,12 @@ class ValuationRemovalResult:
 
 
 class ValuationLifecycleCoordinator(Protocol):
+    def prepare_establish(
+        self,
+        plan: ValuationPlan,
+        operation_identity: ValuationOperationIdentity,
+    ) -> ValuationEstablishPreparationResult: ...
+
     def establish(
         self,
         plan: ValuationPlan,
@@ -301,31 +319,59 @@ class DefaultValuationCoordinator:
         except PersistenceError as exc:
             return ValuationEstablishmentOutcome.INDETERMINATE, exc
 
-    def establish(
+    def _build_establish_operation(
         self,
         plan: ValuationPlan,
-        operation_identity: ValuationOperationIdentity | None = None,
-    ) -> ValuationEstablishmentResult:
-        try:
-            self._validator.validate(plan)
-        except ValuationValidationError as exc:
-            return ValuationEstablishmentResult(
-                ValuationEstablishmentOutcome.FAILURE,
-                exc,
-            )
-
+        operation_identity: ValuationOperationIdentity,
+    ) -> ValuationOperationRecord:
+        self._validator.validate(plan)
         document_identity = self._establish_document_identity(plan)
         descriptor = ValuationEstablishRecoveryDescriptor(
             document_identity=document_identity,
             operations=plan.operations,
         )
-        operation = ValuationOperationRecord(
-            identity=operation_identity or ValuationOperationIdentity(str(Identifier.new())),
+        return ValuationOperationRecord(
+            identity=operation_identity,
             operation_type=ValuationOperationType.ESTABLISH,
             document_identity=document_identity,
             fingerprint=_establish_fingerprint(plan),
             establish_descriptor=descriptor,
         )
+
+    def prepare_establish(
+        self,
+        plan: ValuationPlan,
+        operation_identity: ValuationOperationIdentity,
+    ) -> ValuationEstablishPreparationResult:
+        try:
+            operation = self._build_establish_operation(plan, operation_identity)
+        except ValuationValidationError as exc:
+            return ValuationEstablishPreparationResult(
+                ValuationEstablishPreparationOutcome.FAILURE,
+                exc,
+            )
+
+        outcome, error = self._register_operation(operation)
+        return ValuationEstablishPreparationResult(
+            ValuationEstablishPreparationOutcome(outcome.value),
+            error,
+        )
+
+    def establish(
+        self,
+        plan: ValuationPlan,
+        operation_identity: ValuationOperationIdentity | None = None,
+    ) -> ValuationEstablishmentResult:
+        effective_operation_identity = operation_identity or ValuationOperationIdentity(
+            str(Identifier.new())
+        )
+        try:
+            operation = self._build_establish_operation(plan, effective_operation_identity)
+        except ValuationValidationError as exc:
+            return ValuationEstablishmentResult(
+                ValuationEstablishmentOutcome.FAILURE,
+                exc,
+            )
 
         outcome, error = self._register_operation(operation)
         if outcome is not ValuationEstablishmentOutcome.SUCCESS:

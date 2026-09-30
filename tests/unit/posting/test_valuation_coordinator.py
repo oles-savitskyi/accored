@@ -16,6 +16,8 @@ from accore.platform.valuation import (
     ValuationOperationIdentity,
     ValuationPlan,
     ValuationPreparationContext,
+    ValuationRecoveryOutcome,
+    ValuationRecoveryResult,
     ValuationRemovalOutcome,
     ValuationRemovalResult,
 )
@@ -41,6 +43,8 @@ class RecordingLifecycle:
     def __init__(self) -> None:
         self.establish_calls: list[tuple[object, ValuationOperationIdentity]] = []
         self.remove_calls: list[tuple[Identifier, ValuationOperationIdentity]] = []
+        self.recovery_calls: list[ValuationOperationIdentity] = []
+        self.recovery_result = ValuationRecoveryResult(ValuationRecoveryOutcome.SUCCESS)
 
     def establish(self, plan, operation_identity):
         self.establish_calls.append((plan, operation_identity))
@@ -49,6 +53,19 @@ class RecordingLifecycle:
     def remove(self, document_identity, operation_identity):
         self.remove_calls.append((document_identity, operation_identity))
         return ValuationRemovalResult(ValuationRemovalOutcome.SUCCESS)
+
+    def prepare_establish(self, plan, operation_identity):
+        self.prepare_establish_call = (plan, operation_identity)
+        from accore.platform.valuation import (
+            ValuationEstablishPreparationOutcome,
+            ValuationEstablishPreparationResult,
+        )
+
+        return ValuationEstablishPreparationResult(ValuationEstablishPreparationOutcome.SUCCESS)
+
+    def recover(self, operation_identity):
+        self.recovery_calls.append(operation_identity)
+        return self.recovery_result
 
 
 def test_prepare_translates_posting_context_to_deterministic_valuation_context() -> None:
@@ -112,3 +129,49 @@ def _child_identity(parent: PostingOperationIdentity, operation_type: str) -> st
     return DefaultPostingParticipantOperationIdentityFactory().derive(
         parent, "valuation", operation_type
     )
+
+
+def test_prepare_establish_uses_establish_child_identity() -> None:
+    engine = RecordingEngine()
+    lifecycle = RecordingLifecycle()
+    coordinator = ValuationPostingCoordinator(engine, lifecycle)
+    document = FakeDocument(Identifier.new())
+    parent = PostingOperationIdentity("posting-1")
+
+    result = coordinator.prepare_establish(document, MovementSet(()), engine.plan, parent)
+
+    assert result.outcome.value == "success"
+    assert lifecycle.prepare_establish_call == (
+        engine.plan,
+        ValuationOperationIdentity(_child_identity(parent, "establish")),
+    )
+
+
+def test_recover_orders_remove_before_establish() -> None:
+    engine = RecordingEngine()
+    lifecycle = RecordingLifecycle()
+    coordinator = ValuationPostingCoordinator(engine, lifecycle)
+    parent = PostingOperationIdentity("posting-1")
+
+    result = coordinator.recover(parent)
+
+    assert result.outcome.value == "success"
+    assert lifecycle.recovery_calls == [
+        ValuationOperationIdentity(_child_identity(parent, "remove")),
+        ValuationOperationIdentity(_child_identity(parent, "establish")),
+    ]
+
+
+def test_recover_stops_after_remove_failure() -> None:
+    engine = RecordingEngine()
+    lifecycle = RecordingLifecycle()
+    lifecycle.recovery_result = ValuationRecoveryResult(ValuationRecoveryOutcome.FAILURE)
+    coordinator = ValuationPostingCoordinator(engine, lifecycle)
+    parent = PostingOperationIdentity("posting-1")
+
+    result = coordinator.recover(parent)
+
+    assert result.outcome.value == "failure"
+    assert lifecycle.recovery_calls == [
+        ValuationOperationIdentity(_child_identity(parent, "remove")),
+    ]

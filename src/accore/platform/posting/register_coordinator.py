@@ -60,6 +60,16 @@ class RegisterPostingResultCoordinator:
             return PostingLifecycleResult(PostingLifecycleOutcome.FAILURE, exc)
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
+    def prepare_establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: object,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult:
+        del document, movement_set, plan, operation_identity
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
     def remove(
         self,
         document: ObjectInstance,
@@ -78,6 +88,13 @@ class RegisterPostingResultCoordinator:
             return PostingLifecycleResult(PostingLifecycleOutcome.INDETERMINATE, exc)
         except PersistenceError as exc:
             return PostingLifecycleResult(PostingLifecycleOutcome.FAILURE, exc)
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
+    def recover(
+        self,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult:
+        del operation_identity
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
 

@@ -37,6 +37,31 @@ class CompositePostingResultCoordinator:
             )
         )
 
+    def prepare_establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: PostingResultPlan,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult:
+        if len(plan.participant_plans) != len(self._participants):
+            raise ValueError("Posting result plan does not match the configured participants.")
+
+        for participant, participant_plan in zip(
+            self._participants,
+            plan.participant_plans,
+            strict=True,
+        ):
+            result = participant.prepare_establish(
+                document,
+                movement_set,
+                participant_plan,
+                operation_identity,
+            )
+            if result.outcome is not PostingLifecycleOutcome.SUCCESS:
+                return result
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
     def establish(
         self,
         document: ObjectInstance,
@@ -69,6 +94,16 @@ class CompositePostingResultCoordinator:
     ) -> PostingLifecycleResult:
         for participant in self._participants:
             result = participant.remove(document, operation_identity)
+            if result.outcome is not PostingLifecycleOutcome.SUCCESS:
+                return result
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
+    def recover(
+        self,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult:
+        for participant in self._participants:
+            result = participant.recover(operation_identity)
             if result.outcome is not PostingLifecycleOutcome.SUCCESS:
                 return result
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)

@@ -67,6 +67,17 @@ class FakeOperationPersistence:
             self.append_error = None
             raise error
 
+        existing = next(
+            (item for item in self.operations if item.identity == operation.identity),
+            None,
+        )
+        if existing is not None:
+            if existing != operation:
+                raise ValuationConflictError(
+                    "Valuation operation identity already exists with different semantics."
+                )
+            return
+
         self.operations.append(operation)
 
     def find(
@@ -1075,3 +1086,52 @@ def test_recover_exposes_operation_level_remove_recovery() -> None:
     reversals = tuple(fact for fact in facts.facts if isinstance(fact, ValuationReversal))
     assert len(reversals) == 1
     assert reversals[0].reversed_identity == layer.identity
+
+
+def test_prepare_establish_registers_recovery_descriptor_before_establishment() -> None:
+    facts = FakeFactPersistence()
+    operations = FakeOperationPersistence()
+    plan, _ = establishment_plan()
+    operation_identity = ValuationOperationIdentity("establish-1")
+
+    result = coordinator(facts, operation_persistence=operations).prepare_establish(
+        plan, operation_identity
+    )
+
+    assert result.outcome.value == "success"
+    assert len(operations.operations) == 1
+    operation = operations.operations[0]
+    assert operation.identity == operation_identity
+    assert operation.operation_type is ValuationOperationType.ESTABLISH
+    assert operation.establish_descriptor is not None
+    assert operation.establish_descriptor.operations == plan.operations
+    assert facts.facts == []
+
+
+def test_prepare_establish_is_idempotent_for_same_semantics() -> None:
+    operations = FakeOperationPersistence()
+    plan, _ = establishment_plan()
+    operation_identity = ValuationOperationIdentity("establish-1")
+    instance = coordinator(operation_persistence=operations)
+
+    first = instance.prepare_establish(plan, operation_identity)
+    second = instance.prepare_establish(plan, operation_identity)
+
+    assert first.outcome.value == "success"
+    assert second.outcome.value == "success"
+    assert len(operations.operations) == 1
+
+
+def test_establish_reuses_pre_registered_operation() -> None:
+    operations = FakeOperationPersistence()
+    plan, _ = establishment_plan()
+    operation_identity = ValuationOperationIdentity("establish-1")
+    instance = coordinator(operation_persistence=operations)
+
+    preparation = instance.prepare_establish(plan, operation_identity)
+    result = instance.establish(plan, operation_identity)
+
+    assert preparation.outcome.value == "success"
+    assert result.outcome is ValuationEstablishmentOutcome.SUCCESS
+    assert len(operations.operations) == 1
+    assert len(operations.append_calls) == 2

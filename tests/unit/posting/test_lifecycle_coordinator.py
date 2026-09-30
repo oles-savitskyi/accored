@@ -30,10 +30,20 @@ class RecordingRegisterCoordinator:
         self.operation_identities.append(context.operation_identity)
         return RegisterPostingPlan(movements=movement_set)
 
+    def prepare_establish(self, document, movement_set, plan, operation_identity):
+        self.calls.append("register.prepare_establish")
+        self.operation_identities.append(operation_identity)
+        return self.result
+
     def establish(self, document, movement_set, plan, operation_identity):
         self.calls.append("register.establish")
         self.operation_identities.append(operation_identity)
         assert isinstance(plan, RegisterPostingPlan)
+        return self.result
+
+    def recover(self, operation_identity):
+        self.calls.append("register.recover")
+        self.operation_identities.append(operation_identity)
         return self.result
 
     def remove(self, document, operation_identity):
@@ -54,10 +64,20 @@ class RecordingValuationCoordinator:
         self.operation_identities.append(context.operation_identity)
         return self.plan
 
+    def prepare_establish(self, document, movement_set, plan, operation_identity):
+        self.calls.append("valuation.prepare_establish")
+        self.operation_identities.append(operation_identity)
+        return self.result
+
     def establish(self, document, movement_set, plan, operation_identity):
         self.calls.append("valuation.establish")
         self.operation_identities.append(operation_identity)
         assert plan is self.plan
+        return self.result
+
+    def recover(self, operation_identity):
+        self.calls.append("valuation.recover")
+        self.operation_identities.append(operation_identity)
         return self.result
 
     def remove(self, document, operation_identity):
@@ -181,3 +201,34 @@ def test_establish_rejects_plan_with_wrong_participant_count() -> None:
 
     with pytest.raises(ValueError, match="does not match"):
         coordinator.establish(document, movement_set, bad_plan, PostingOperationIdentity("post-1"))
+
+
+def test_prepare_establish_runs_before_establish_for_all_participants() -> None:
+    register = RecordingRegisterCoordinator()
+    valuation = RecordingValuationCoordinator()
+    coordinator = CompositePostingResultCoordinator((register, valuation))
+    movement_set = MovementSet(())
+    document = FakeDocument(Identifier.new())
+    operation_identity = PostingOperationIdentity("post-1")
+    plan = coordinator.prepare(
+        document, movement_set, PostingPreparationContext(operation_identity)
+    )
+
+    result = coordinator.prepare_establish(document, movement_set, plan, operation_identity)
+
+    assert result.outcome is PostingLifecycleOutcome.SUCCESS
+    assert register.calls[-1] == "register.prepare_establish"
+    assert valuation.calls[-1] == "valuation.prepare_establish"
+
+
+def test_recover_runs_participants_in_configured_order() -> None:
+    register = RecordingRegisterCoordinator()
+    valuation = RecordingValuationCoordinator()
+    coordinator = CompositePostingResultCoordinator((register, valuation))
+    operation_identity = PostingOperationIdentity("post-1")
+
+    result = coordinator.recover(operation_identity)
+
+    assert result.outcome is PostingLifecycleOutcome.SUCCESS
+    assert register.calls == ["register.recover"]
+    assert valuation.calls == ["valuation.recover"]

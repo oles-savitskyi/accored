@@ -5,6 +5,7 @@ from typing import Protocol
 from accore.platform.object import ObjectInstance
 
 from .engine import PostingEngine
+from .identity import PostingOperationIdentity
 from .result import PostingResult
 
 
@@ -12,6 +13,7 @@ class PostingAPI(Protocol):
     def post(self, document: ObjectInstance) -> PostingResult: ...
     def unpost(self, document: ObjectInstance) -> PostingResult: ...
     def repost(self, document: ObjectInstance) -> PostingResult: ...
+    def recover(self, operation_identity: PostingOperationIdentity) -> PostingResult: ...
 
 
 class DefaultPostingAPI:
@@ -26,3 +28,6 @@ class DefaultPostingAPI:
 
     def repost(self, document: ObjectInstance) -> PostingResult:
         return self._engine.repost(document)
+
+    def recover(self, operation_identity: PostingOperationIdentity) -> PostingResult:
+        return self._engine.recover(operation_identity)

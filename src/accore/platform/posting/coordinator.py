@@ -47,6 +47,14 @@ class PostingResultParticipant(Protocol):
         context: PostingPreparationContext,
     ) -> object: ...
 
+    def prepare_establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: object,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult: ...
+
     def establish(
         self,
         document: ObjectInstance,
@@ -61,6 +69,11 @@ class PostingResultParticipant(Protocol):
         operation_identity: PostingOperationIdentity,
     ) -> PostingLifecycleResult: ...
 
+    def recover(
+        self,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult: ...
+
 
 class PostingResultCoordinator(Protocol):
     def prepare(
@@ -69,6 +82,14 @@ class PostingResultCoordinator(Protocol):
         movement_set: MovementSet,
         context: PostingPreparationContext,
     ) -> PostingResultPlan: ...
+
+    def prepare_establish(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        plan: PostingResultPlan,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult: ...
 
     def establish(
         self,
@@ -81,5 +102,10 @@ class PostingResultCoordinator(Protocol):
     def remove(
         self,
         document: ObjectInstance,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult: ...
+
+    def recover(
+        self,
         operation_identity: PostingOperationIdentity,
     ) -> PostingLifecycleResult: ...

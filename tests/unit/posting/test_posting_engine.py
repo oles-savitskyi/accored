@@ -126,6 +126,13 @@ class Coordinator:
         del document
         return RegisterPostingPlan(movements=movement_set)
 
+    def prepare_establish(self, document, movement_set, plan, operation_identity):
+        from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
+
+        self.operation_identities.append(operation_identity)
+        del document, movement_set, plan
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
     def establish(self, document, movement_set, plan, operation_identity):
         from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
 
@@ -135,6 +142,12 @@ class Coordinator:
             error, self.fail_with = self.fail_with, None
             raise error
         self.effects[document.identity] = tuple(plan.movements.movements)
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
+    def recover(self, operation_identity):
+        from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
+
+        self.operation_identities.append(operation_identity)
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
     def remove(self, document, operation_identity):
@@ -198,6 +211,7 @@ def test_posting_engine_uses_one_identity_for_each_logical_lifecycle() -> None:
         PostingOperationIdentity("operation-1"),
         PostingOperationIdentity("operation-1"),
         PostingOperationIdentity("operation-2"),
+        PostingOperationIdentity("operation-3"),
         PostingOperationIdentity("operation-3"),
         PostingOperationIdentity("operation-3"),
         PostingOperationIdentity("operation-3"),
@@ -284,3 +298,15 @@ def test_indeterminate_persistence_failure_is_indeterminate() -> None:
     result = api.post(document)
 
     assert result.is_indeterminate
+
+
+def test_posting_engine_recover_uses_existing_operation_identity() -> None:
+    document = make_document()
+    clock = FixedClock(datetime(2026, 9, 16, 12, 0, tzinfo=UTC))
+    api, coordinator, _identity_factory = build_api(document, state(line("P1", "W1", "1")), clock)
+    operation_identity = PostingOperationIdentity("recovery-1")
+
+    result = api.recover(operation_identity)
+
+    assert result.is_success
+    assert coordinator.operation_identities == [operation_identity]

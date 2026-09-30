@@ -25,7 +25,11 @@ from .events import (
     PostingEventPublisher,
 )
 from .handlers import PostingHandlerResolver
-from .identity import DefaultPostingOperationIdentityFactory, PostingOperationIdentityFactory
+from .identity import (
+    DefaultPostingOperationIdentityFactory,
+    PostingOperationIdentity,
+    PostingOperationIdentityFactory,
+)
 from .result import PostingResult
 
 
@@ -126,6 +130,11 @@ class PostingEngine:
                     replacement_document_identity=document.identity,
                 ),
             )
+            preparation = self._coordinator.prepare_establish(
+                document, movement_set, plan, operation_identity
+            )
+            if preparation.outcome is not PostingLifecycleOutcome.SUCCESS:
+                return self._result_from_lifecycle(preparation, None)
             removal = self._coordinator.remove(document, operation_identity)
             if removal.outcome is not PostingLifecycleOutcome.SUCCESS:
                 return self._result_from_lifecycle(removal, None)
@@ -133,6 +142,17 @@ class PostingEngine:
                 document, movement_set, plan, operation_identity
             )
             return self._result_from_lifecycle(establishment, DocumentReposted(document.identity))
+        except PersistenceIndeterminateError as exc:
+            return PostingResult.indeterminate(PostingIndeterminateError(str(exc)))
+        except PersistenceError as exc:
+            return PostingResult.failure(PostingPersistenceError(str(exc)))
+        except Exception as exc:  # noqa: BLE001
+            return PostingResult.failure(PostingPersistenceError(str(exc)))
+
+    def recover(self, operation_identity: PostingOperationIdentity) -> PostingResult:
+        try:
+            result = self._coordinator.recover(operation_identity)
+            return self._result_from_lifecycle(result, None)
         except PersistenceIndeterminateError as exc:
             return PostingResult.indeterminate(PostingIndeterminateError(str(exc)))
         except PersistenceError as exc:

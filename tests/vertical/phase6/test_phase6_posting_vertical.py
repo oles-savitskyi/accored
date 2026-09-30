@@ -128,11 +128,21 @@ class InMemoryPostingResultCoordinator:
         del document, context
         return RegisterPostingPlan(movements=movement_set)
 
+    def prepare_establish(self, document, movement_set, plan, operation_identity):
+        from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
+
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
     def establish(self, document, movement_set, plan, operation_identity):
         from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
 
         del movement_set, operation_identity
         self.effects[document.identity] = tuple(plan.movements.movements)
+        return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
+
+    def recover(self, operation_identity):
+        from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
+
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
     def remove(self, document, operation_identity):
