@@ -2,7 +2,7 @@
 
 # Repost Recovery — Architecture Definition / Scope
 
-**Status:** Draft for Architecture Review
+**Status:** Final Architecture Reconciliation — Implemented and Verified
 **Phase:** Phase 8
 **Work Package:** WP-8 — Reversal / Repost / Recovery
 **Slice:** 10.7 — Repost Recovery
@@ -1124,39 +1124,28 @@ The resulting architecture is:
 
 ---
 
-# 30. Architecture Review Questions
+# 30. Final Architecture Review Result
 
-Before moving to Concrete API Design, the following points require explicit approval:
+The architecture questions listed during design review were resolved by the implemented Slice 10.7 design:
 
-1. **Durable ESTABLISH intent:** approve making the ESTABLISH operation record/descriptive payload available before REMOVE may complete.
-2. **No Posting persistence:** confirm that this solves recovery without introducing `PostingOperationRecord`.
-3. **Recovery authority:** confirm that valuation operation records remain authoritative for the lifecycle.
-4. **Recovery ordering:** confirm `REMOVE → ESTABLISH` as the mandatory recovery order.
-5. **Plan recovery:** confirm that persisted `ValuationEstablishRecoveryDescriptor` is the recovery source rather than rerunning Posting preparation.
-6. **Derived state:** confirm continued exclusive use of `DefaultValuationRebuilder`.
-7. **Events:** confirm that no new event persistence/idempotency layer is introduced unless implementation demonstrates an actual gap.
-8. **Scope boundary:** confirm that Register recovery and cross-subsystem transaction semantics remain outside Slice 10.7.
+1. Durable ESTABLISH intent is registered before Repost REMOVE.
+2. No `PostingOperationRecord` or Posting persistence boundary is introduced.
+3. Valuation operation records remain authoritative for valuation lifecycle recovery.
+4. Recovery order is REMOVE → ESTABLISH.
+5. `ValuationEstablishRecoveryDescriptor` is the recovery source; Posting preparation is not rerun during recovery.
+6. `DefaultValuationRebuilder` remains the sole derived-state rebuild implementation.
+7. No event persistence/idempotency layer is introduced.
+8. Register recovery remains a no-op in this slice; cross-subsystem transactions remain out of scope.
 
----
+## 31. Definition of Done — Satisfied
 
-# 31. Definition of Done for Architecture Phase
-
-Architecture is considered approved when:
-
-* the durable ESTABLISH-intent timing is accepted;
-* the authoritative state model is accepted;
-* the recovery state matrix is accepted;
-* the REMOVE → ESTABLISH recovery ordering is accepted;
-* no parent Posting persistence is required;
-* the recovery boundary between Posting and Valuation is accepted;
-* historical immutability is preserved;
-* the existing Slice 10.5 unified valuation recovery remains reusable;
-* the API changes required to implement these decisions can be expressed without introducing unrelated abstractions.
-
-After approval, the next artifact is:
+Slice 10.7 architecture is implemented and verified at commit `5046a9c`. The final Python 3.14 quality gate was:
 
 ```text
-PHASE_8_WP-8_Slice_10.7_Repost_Recovery_Concrete_API_Design.md
+pytest -q       → 1051 passed
+ruff check .    → PASS
+black --check . → PASS (237 files unchanged)
+mypy src        → PASS (129 source files)
 ```
 
-No implementation should begin before that API design is reviewed and approved.
+The corresponding Concrete API Design is implemented; no further architecture approval is pending for Slice 10.7.

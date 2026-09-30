@@ -1,5 +1,6 @@
 # PHASE 8 WP-8 Slice 10 — Concrete API Design
 
+**Documentation note:** Historical Slice 10 design baseline. Final repost lifecycle and recovery semantics are defined by Slices 10.6 and 10.7 and the final WP-8 reconciliation document.
 **Status:** Approved for Implementation
 **Phase:** Phase 8 — Valuation Lifecycle Completion
 **Work Package:** WP-8 — Reversal / Repost / Recovery

@@ -3,6 +3,7 @@
 ## Concrete API Design
 
 **Status:** Approved for Implementation
+**Documentation note:** Historical Slice 10.6 design. Repost recovery scope was subsequently implemented by Slice 10.7; its final lifecycle order is `prepare → prepare_establish → remove → establish`.
 
 ---
 

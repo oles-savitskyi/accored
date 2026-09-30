@@ -2,8 +2,8 @@
 
 ## Final Concrete API Design
 
-**Status:** Approved for Implementation
-**Implementation reconciliation:** WP-8 Slice 7 (Fact Recovery / Reconciliation) implemented and quality-gated; the remaining WP-8 slices are not yet complete.
+**Status:** Final WP-8 Concrete API Reconciliation — Complete
+**Implementation reconciliation:** WP-8 Slices 1–10.7 are implemented, tested, and quality-gated at commit `5046a9c`.
 
 ---
 
@@ -13,7 +13,7 @@ WP-8 introduces the concrete API required to implement:
 
 * immutable valuation reversal;
 * idempotent unpost;
-* repost as `remove → prepare → establish`;
+* repost as `prepare → prepare_establish → remove → establish`;
 * recovery after partial persistence;
 * recovery after persistence indeterminate state;
 * deterministic logical-operation identity;
@@ -1328,13 +1328,15 @@ Successful repost:
 ```text
 old valuation facts
         ↓
+read-only projected state excluding old effect
+        ↓
+new preparation
+        ↓
+ESTABLISH intent registration
+        ↓
 REMOVE operation
         ↓
 reversal facts
-        ↓
-effective state after removal
-        ↓
-new preparation
         ↓
 new ESTABLISH operation
         ↓
@@ -1391,10 +1393,10 @@ WP-8 implementation must cover at minimum:
 
 ### Repost
 
-* remove before prepare;
-* FIFO preparation observes post-removal state;
-* remove failure blocks preparation;
-* remove indeterminate blocks preparation;
+* prepare against a projected state equivalent to old-effect removal;
+* FIFO preparation observes the projected post-removal state;
+* ESTABLISH-intent failure blocks REMOVE;
+* REMOVE failure or indeterminate blocks ESTABLISH;
 * new establish creates new facts.
 
 ### Persistence failure
@@ -1456,8 +1458,8 @@ WP-8 implementation must cover at minimum:
 | AC-2 Effective compensation      | reversal interpretation during rebuild    |
 | AC-3 Repeated unpost             | single-effective-reversal invariant       |
 | AC-4 Repeated reversal           | fact-specific reversal idempotency        |
-| AC-5 Repost lifecycle            | `remove → prepare → establish`            |
-| AC-6 FIFO-aware repost           | preparation after removal                 |
+| AC-5 Repost lifecycle            | `prepare → prepare_establish → remove → establish`            |
+| AC-6 FIFO-aware repost           | preparation against projected post-removal state |
 | AC-7 Persistence failure         | explicit `FAILURE` / no blind retry       |
 | AC-8 Persistence indeterminate   | reconciliation before retry               |
 | AC-9 Duplicate logical operation | operation identity + fingerprint          |
@@ -1513,7 +1515,7 @@ An indeterminate persistence operation cannot be retried blindly.
 Repost is:
 
 ```text
-remove → prepare → establish
+prepare → prepare_establish → remove → establish
 ```
 
 ### W8-I11 — No Rollback Illusion
@@ -1544,15 +1546,14 @@ Authoritative valuation facts cannot legitimately exist without their operation 
 
 # 55. API Changes Summary
 
-The following is the approved WP-8 target API surface. The current Slice 7 implementation covers only the fact-recovery subset identified below; later lifecycle/rebuild APIs remain pending.
-
-The implementation introduces or formalizes:
+The final WP-8 public API surface is implemented and reconciled. It includes:
 
 ```text
 ValuationOperationIdentity
 ValuationOperationType
 ValuationOperationRecord
 ValuationOperationPersistence
+ValuationEstablishRecoveryDescriptor
 
 ValuationFactIdentityFactory
 ValuationReversal.operation_identity
@@ -1565,26 +1566,20 @@ ValuationOperationRecoveryService
 ValuationRecoveryOutcome
 ValuationRecoveryResult
 
-ValuationCoordinator.recover(...)
-```
+ValuationLifecycleCoordinator.prepare_establish(...)
+ValuationLifecycleCoordinator.establish(...)
+ValuationLifecycleCoordinator.remove(...)
+ValuationLifecycleCoordinator.recover(...)
 
-For Slice 8, `ValuationOperationRecord.target_fact_identities` is the authoritative immutable recovery material for registered REMOVE operations.
-
-The existing:
-
-```text
-ValuationFactPersistence
-ValuationCoordinator.establish(...)
-ValuationCoordinator.remove(...)
+PostingEngine.post(...)
+PostingEngine.unpost(...)
 PostingEngine.repost(...)
-CompositePostingResultCoordinator
+PostingEngine.recover(...)
 ```
 
-are extended or reconciled with the WP-8 semantics.
+`ValuationOperationRecord.target_fact_identities` is authoritative immutable recovery material for registered REMOVE operations. `ValuationOperationRecord.establish_descriptor` is authoritative immutable recovery material for ESTABLISH operations.
 
-No mutable operation-status model is introduced.
-
-No operation-record update/delete API is introduced.
+No mutable operation-status model, operation-record update API, or operation-record delete API is introduced.
 
 ---
 
@@ -1607,39 +1602,28 @@ WP-8 does not introduce:
 
 # 57. Implementation Order
 
-Implementation follows this order:
+Implementation and review completed in the following sequence:
 
 ```text
 1. Operation identity and operation record
-        ↓
-2. Operation persistence
-        ↓
-3. Operation fingerprinting
-        ↓
-4. Canonical REMOVE target representation
-        ↓
-5. Deterministic fact identity
-        ↓
-6. Fact persistence idempotency
-        ↓
-7. Immutable reversal semantics
-        ↓
-8. REMOVE recovery
-        ↓
-9. ESTABLISH recovery
-        ↓
-10. Derived-state rebuild
-        ↓
-11. Posting repost ordering
-        ↓
-12. Composite posting recovery tests
-        ↓
-13. Full WP-8 test matrix
-        ↓
-14. Documentation reconciliation
-        ↓
-15. Final quality gate
+2. Operation persistence and fingerprinting
+3. Canonical REMOVE target representation
+4. Deterministic fact identity and fact persistence idempotency
+5. Immutable reversal semantics
+6. REMOVE recovery
+7. Unified valuation recovery
+8. Derived-state rebuild / reconciliation
+9. Posting lifecycle identity propagation
+10. Deterministic projected Repost preparation
+11. Repost lifecycle: prepare → prepare_establish → remove → establish
+12. Durable ESTABLISH recovery intent
+13. Posting recovery: REMOVE → ESTABLISH
+14. Composite recovery integration and vertical tests
+15. Final documentation reconciliation
+16. Final quality gate
 ```
+
+The final implementation state is commit `5046a9c`.
 
 ---
 
@@ -1676,11 +1660,11 @@ The final WP-8 API decisions are:
 27. Partial fact recovery appends only missing deterministic facts.
 28. Derived state is rebuildable from authoritative history.
 29. Rebuild is idempotent.
-30. Repost order is `remove → prepare → establish`.
-31. Preparation is blocked by REMOVE `FAILURE` or `INDETERMINATE`.
+30. Repost order is `prepare → prepare_establish → remove → establish`.
+31. `prepare_establish` is completed before REMOVE; REMOVE `FAILURE` or `INDETERMINATE` blocks ESTABLISH.
 32. Failure after successful removal does not restore the old valuation effect.
 33. Recovery repairs state without mutating historical facts.
 34. Generic posting coordination remains transaction-neutral.
 35. No historical valuation fact is updated or deleted.
 
-**WP-8 Concrete API Design is approved and remains the authoritative target design. Implementation is progressing slice-by-slice; Slice 7 (Fact Recovery / Reconciliation) is complete, while the remaining implementation order is still pending.**
+**WP-8 Concrete API Design is fully implemented and reconciled against commit `5046a9c`. It is the authoritative API reference for the completed WP-8 lifecycle and recovery architecture.**

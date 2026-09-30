@@ -4,41 +4,42 @@
 
 ## Amended Architecture Definition / Scope
 
-**Status:** Architecture Definition — Amended
-**Stage:** Architecture Review completed — Approved with Required Amendments
-**Implementation:** In progress — WP-8 Slice 7 (Fact Recovery / Reconciliation) complete
+**Status:** Final WP-8 Architecture Reconciliation — Complete
+**Stage:** Architecture Review completed; implementation and final review complete
+**Implementation:** WP-8 Slices 1–10.7 complete and quality-gated
+**Final implementation commit:** `5046a9c` — `feat(valuation): complete WP-8 Slice 10.7 repost recovery`
 **Predecessor:** Phase 8 WP-7 — Standard Inventory Composition
-**Baseline commit:** `0d94800` — `feat(standard): complete Phase 8 WP-7 inventory composition`
 
 ---
 
-## Implementation Reconciliation — WP-8 Slice 7
+## Final Implementation Reconciliation — WP-8
 
-The current implementation has completed the Fact Recovery / Reconciliation slice defined by the approved WP-8 design.
+The complete WP-8 implementation is now finished. The final implementation covers:
 
-Implemented in `accore.platform.valuation`:
+* immutable valuation reversal semantics;
+* authoritative `ValuationOperationRecord` history;
+* deterministic operation and fact identities;
+* canonical REMOVE target selection and fingerprinting;
+* partial and indeterminate fact reconciliation;
+* unified valuation operation recovery;
+* derived-state rebuild and reconciliation;
+* deterministic projected valuation preparation for Repost;
+* deterministic Posting → Valuation child operation identities;
+* durable ESTABLISH recovery intent before Repost REMOVE;
+* Posting-level recovery ordered as REMOVE → ESTABLISH;
+* event publication only after successful logical lifecycle completion;
+* transaction-neutral composite Posting coordination.
 
-* `ValuationFactRecoveryOutcome`;
-* `ValuationFactRecoveryResult`;
-* `ValuationFactRecoveryService`;
-* authoritative `ValuationFactPersistence.find(identity)` reconciliation;
-* partial fact recovery after an indeterminate append;
-* semantic conflict detection during reconciliation;
-* append-only recovery of only missing deterministic facts;
-* deterministic fact identities for lifecycle facts;
-* ESTABLISH integration with operation registration before fact persistence;
-* REMOVE integration using the target set captured before operation registration;
-* recovery integration tests for ESTABLISH and REMOVE partial fact persistence.
+Final quality gate on the project's Python 3.14 environment:
 
-The following WP-8 areas remain later implementation slices and are therefore intentionally not claimed as complete by this reconciliation:
+```text
+pytest -q       → 1051 passed
+ruff check .    → PASS
+black --check . → PASS (237 files unchanged)
+mypy src        → PASS (129 source files)
+```
 
-* derived-state recovery/rebuild;
-* explicit operation-level `recover(...)`;
-* full repost recovery semantics;
-* composite posting recovery;
-* the remaining full WP-8 acceptance/test matrix.
-
-The approved architecture remains unchanged.
+The final implementation commit is `5046a9c`. No known implementation/documentation conflict remains in the final WP-8 architecture model after this reconciliation.
 
 ---
 
@@ -774,7 +775,8 @@ Recovery must not repair authoritative history by modifying it.
 | Unpost            | reversal persistence INDETERMINATE | reconcile reversal history             |
 | Unpost            | derived persistence FAILURE        | history remains; rebuild derived state |
 | Unpost            | derived persistence INDETERMINATE  | reconcile and rebuild                  |
-| Repost            | remove FAILURE                     | stop; no new preparation               |
+| Repost            | prepare / ESTABLISH-intent failure | stop; no REMOVE is attempted           |
+| Repost            | remove FAILURE                     | stop; no ESTABLISH is executed         |
 | Repost            | remove INDETERMINATE               | stop; recover/reconcile first          |
 | Repost            | establish FAILURE                  | old effect remains reversed            |
 | Repost            | establish INDETERMINATE            | reconcile authoritative history        |
@@ -827,7 +829,7 @@ An indeterminate persistence outcome must be reconciled before blind retry.
 Repost is:
 
 ```text
-remove → prepare → establish
+prepare → prepare_establish → remove → establish
 ```
 
 ## W8-I11 — No rollback illusion
@@ -878,7 +880,7 @@ is observable and deterministic.
 
 ### AC-6 — FIFO-aware repost
 
-New valuation preparation observes the state after removal of the old effect.
+New valuation preparation observes a read-only projection equivalent to the state after removal of the old effect.
 
 ### AC-7 — Persistence failure
 
@@ -1002,7 +1004,7 @@ The following decisions are final for the architecture scope:
 9. Logical operation identity is required.
 10. Repeated logical operations must be idempotent.
 11. `INDETERMINATE` requires reconciliation.
-12. Repost order is `remove → prepare → establish`.
+12. Repost order is `prepare → prepare_establish → remove → establish`.
 13. Repost does not use distributed rollback.
 14. Composite Posting Coordinator remains transaction-neutral.
 15. No historical valuation fact may be mutated or deleted.
@@ -1011,13 +1013,9 @@ The following decisions are final for the architecture scope:
 
 # 30. Next Stage
 
-The next stage is:
+The next-stage implementation and review work is complete. The Concrete API Design and Slice 10.7 recovery design have been implemented and reconciled against commit `5046a9c`.
 
-```text
-WP-8 Concrete API Design
-```
-
-Concrete API Design must define, without changing the above architectural decisions:
+The final WP-8 architecture is now the authoritative reference for subsequent maintenance work.
 
 * logical operation identity;
 * operation/recovery state representation;
