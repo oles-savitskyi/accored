@@ -1,5 +1,9 @@
 from accore.platform.foundation import Identifier
-from accore.platform.posting import RegisterPostingResultCoordinator
+from accore.platform.posting import (
+    PostingOperationIdentity,
+    PostingPreparationContext,
+    RegisterPostingResultCoordinator,
+)
 from accore.platform.registers import Movement
 
 
@@ -57,7 +61,7 @@ def test_remove_uses_authoritative_source_document_lookup():
     mutation = Mutation()
     coordinator = RegisterPostingResultCoordinator(mutation, persistence, (register,))
 
-    coordinator.remove(document)
+    coordinator.remove(document, PostingOperationIdentity("remove-1"))
 
     assert persistence.lookups == [(register, document.identity)]
     assert mutation.removed == [(movement,)]
@@ -74,8 +78,10 @@ def test_establish_delegates_complete_movement_set() -> None:
     )
     movement_set = type("MovementSet", (), {"movements": ("movement",)})()
 
-    plan = coordinator.prepare(document, movement_set)
+    plan = coordinator.prepare(
+        document, movement_set, PostingPreparationContext(PostingOperationIdentity("post-1"))
+    )
 
-    coordinator.establish(document, movement_set, plan)
+    coordinator.establish(document, movement_set, plan, PostingOperationIdentity("post-1"))
 
     assert mutation.established == [("movement",)]

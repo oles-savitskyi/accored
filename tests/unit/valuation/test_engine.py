@@ -26,6 +26,8 @@ from accore.platform.valuation import (
     ValuationInsufficientQuantityError,
     ValuationKey,
     ValuationLayer,
+    ValuationOperationIdentity,
+    ValuationPreparationContext,
     ValuationValidationError,
 )
 
@@ -53,7 +55,11 @@ class FakeValuationInputProvider:
 
 
 def engine(reader: FakeLayerReader) -> ValuationEngine:
-    return ValuationEngine(FakeValuationInputProvider(), reader, FIFOValuationMethod())
+    return ValuationEngine(
+        FakeValuationInputProvider(),
+        FakePreparationStateFactory(reader),
+        FIFOValuationMethod(),
+    )
 
 
 @dataclass
@@ -67,6 +73,22 @@ class FakeLayerReader:
     ) -> tuple[ValuationLayer, ...]:
         self.calls.append(valuation_key)
         return self.layers.get(valuation_key, ())
+
+
+@dataclass
+class FakePreparationStateFactory:
+    state: FakeLayerReader
+
+    def authoritative(self):
+        return self.state
+
+    def for_replacement(self, document_identity):
+        del document_identity
+        return self.state
+
+
+def preparation_context(value: str = "prepare-1") -> ValuationPreparationContext:
+    return ValuationPreparationContext(ValuationOperationIdentity(value))
 
 
 def movement(
@@ -112,7 +134,7 @@ def test_prepare_income_creates_layer_establishment_plan() -> None:
     income = movement(MovementType.INCOME, quantity="7")
     reader = FakeLayerReader({}, [])
 
-    plan = engine(reader).prepare(MovementSet((income,)))
+    plan = engine(reader).prepare(MovementSet((income,)), preparation_context())
 
     assert reader.calls == []
     assert len(plan.operations) == 1
@@ -141,7 +163,7 @@ def test_prepare_expense_reads_layers_and_creates_consumption_plan() -> None:
     )
     reader = FakeLayerReader({key: (existing_layer,)}, [])
 
-    plan = engine(reader).prepare(MovementSet((expense,)))
+    plan = engine(reader).prepare(MovementSet((expense,)), preparation_context())
 
     assert reader.calls == [key]
     assert len(plan.operations) == 1
@@ -175,7 +197,9 @@ def test_prepare_preserves_movement_order() -> None:
         source_document_identity=document_identity,
     )
 
-    plan = engine(FakeLayerReader({}, [])).prepare(MovementSet((first, second)))
+    plan = engine(FakeLayerReader({}, [])).prepare(
+        MovementSet((first, second)), preparation_context()
+    )
 
     assert plan.document_identity == document_identity
     assert [operation.quantity for operation in plan.operations] == [Decimal(2), Decimal(3)]
@@ -202,7 +226,7 @@ def test_prepare_reuses_reader_result_and_consumes_remaining_layers_for_multiple
     )
     reader = FakeLayerReader({key: (existing_layer,)}, [])
 
-    plan = engine(reader).prepare(MovementSet((first, second)))
+    plan = engine(reader).prepare(MovementSet((first, second)), preparation_context())
 
     assert reader.calls == [key]
     assert [operation.quantity for operation in plan.operations] == [
@@ -245,14 +269,14 @@ def test_prepare_fails_without_sufficient_layers() -> None:
     )
 
     with pytest.raises(ValuationInsufficientQuantityError):
-        engine(reader).prepare(MovementSet((expense,)))
+        engine(reader).prepare(MovementSet((expense,)), preparation_context())
 
 
 def test_input_provider_rejects_non_positive_quantity() -> None:
     invalid = movement(MovementType.INCOME, quantity="0")
 
     with pytest.raises(ValuationValidationError, match="positive Decimal"):
-        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)))
+        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)), preparation_context())
 
 
 def test_input_provider_rejects_missing_accounting_time() -> None:
@@ -260,7 +284,7 @@ def test_input_provider_rejects_missing_accounting_time() -> None:
     object.__setattr__(invalid, "accounting_time", None)
 
     with pytest.raises(ValuationValidationError, match="accounting_time"):
-        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)))
+        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)), preparation_context())
 
 
 def test_input_provider_rejects_non_string_dimensions() -> None:
@@ -269,7 +293,7 @@ def test_input_provider_rejects_non_string_dimensions() -> None:
     object.__setattr__(invalid, "dimensions", invalid_dimensions)
 
     with pytest.raises(ValuationValidationError, match="Invalid valuation dimensions"):
-        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)))
+        engine(FakeLayerReader({}, [])).prepare(MovementSet((invalid,)), preparation_context())
 
 
 def test_prepare_income_then_expense_references_planned_layer() -> None:
@@ -282,7 +306,7 @@ def test_prepare_income_then_expense_references_planned_layer() -> None:
     )
     reader = FakeLayerReader({}, [])
 
-    plan = engine(reader).prepare(MovementSet((income, expense)))
+    plan = engine(reader).prepare(MovementSet((income, expense)), preparation_context())
 
     assert len(plan.operations) == 2
     layer_plan = plan.operations[0]
@@ -313,3 +337,38 @@ def test_valuation_input_is_pure_semantic_input() -> None:
     assert value.source_identity == source.identity
     assert value.occurred_at == source.accounting_time
     assert not hasattr(value, "layers")
+
+
+def test_prepare_is_deterministic_for_same_operation_identity() -> None:
+    document_identity = Identifier.new()
+    income = movement(MovementType.INCOME, quantity="7", source_document_identity=document_identity)
+    first = engine(FakeLayerReader({}, [])).prepare(
+        MovementSet((income,)), preparation_context("same-operation")
+    )
+    second = engine(FakeLayerReader({}, [])).prepare(
+        MovementSet((income,)), preparation_context("same-operation")
+    )
+
+    assert first == second
+
+
+def test_prepare_changes_opaque_planned_identity_for_different_operation_identity() -> None:
+    document_identity = Identifier.new()
+    income = movement(MovementType.INCOME, quantity="7", source_document_identity=document_identity)
+    first = engine(FakeLayerReader({}, [])).prepare(
+        MovementSet((income,)), preparation_context("operation-a")
+    )
+    second = engine(FakeLayerReader({}, [])).prepare(
+        MovementSet((income,)), preparation_context("operation-b")
+    )
+
+    first_operation = first.operations[0]
+    second_operation = second.operations[0]
+    assert isinstance(first_operation, LayerEstablishmentPlan)
+    assert isinstance(second_operation, LayerEstablishmentPlan)
+    assert first_operation.reference != second_operation.reference
+    assert first_operation.valuation_key == second_operation.valuation_key
+    assert first_operation.quantity == second_operation.quantity
+    assert first_operation.source_document_identity == second_operation.source_document_identity
+    assert first_operation.source_movement_identity == second_operation.source_movement_identity
+    assert first_operation.created_at == second_operation.created_at

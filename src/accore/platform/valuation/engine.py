@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Protocol
 
 from accore.platform.foundation import Identifier
 from accore.platform.posting import MovementSet
@@ -19,15 +18,12 @@ from .plan import (
     PlannedLayerReference,
     ValuationPlan,
 )
-
-
-class ValuationLayerReader(Protocol):
-    """Semantic read boundary for currently available valuation layers."""
-
-    def find_available_layers(
-        self,
-        valuation_key: ValuationKey,
-    ) -> tuple[ValuationLayer, ...]: ...
+from .preparation import (
+    DefaultValuationPreparationIdentityFactory,
+    ValuationPreparationContext,
+    ValuationPreparationIdentityFactory,
+)
+from .preparation_state import ValuationPreparationState, ValuationPreparationStateFactory
 
 
 class ValuationEngine:
@@ -36,14 +32,22 @@ class ValuationEngine:
     def __init__(
         self,
         input_provider: ValuationInputProvider,
-        layer_reader: ValuationLayerReader,
+        preparation_state_factory: ValuationPreparationStateFactory,
         method: ValuationMethod,
+        preparation_identity_factory: ValuationPreparationIdentityFactory | None = None,
     ) -> None:
         self._input_provider = input_provider
-        self._layer_reader = layer_reader
+        self._preparation_state_factory = preparation_state_factory
+        self._preparation_identity_factory = (
+            preparation_identity_factory or DefaultValuationPreparationIdentityFactory()
+        )
         self._consumption = SyntheticConsumptionService(method)
 
-    def prepare(self, movement_set: MovementSet) -> ValuationPlan:
+    def prepare(
+        self,
+        movement_set: MovementSet,
+        context: ValuationPreparationContext,
+    ) -> ValuationPlan:
         if not movement_set.movements:
             raise ValuationValidationError("MovementSet must contain at least one movement.")
 
@@ -57,6 +61,13 @@ class ValuationEngine:
             )
 
         operations: list[LayerEstablishmentPlan | ConsumptionPlan] = []
+        state: ValuationPreparationState
+        if context.replacement_document_identity is None:
+            state = self._preparation_state_factory.authoritative()
+        else:
+            state = self._preparation_state_factory.for_replacement(
+                context.replacement_document_identity
+            )
         available_layers: dict[ValuationKey, tuple[ValuationLayer, ...]] = {}
         planned_references: dict[Identifier, PlannedLayerReference] = {}
 
@@ -69,7 +80,11 @@ class ValuationEngine:
                 )
 
             if movement.movement_type is MovementType.INCOME:
-                reference = PlannedLayerReference(Identifier.new())
+                reference = PlannedLayerReference(
+                    self._preparation_identity_factory.planned_layer_reference(
+                        context.operation_identity, valuation_input.source_identity
+                    )
+                )
                 layer = ValuationLayer(
                     identity=reference.value,
                     valuation_key=valuation_input.valuation_key,
@@ -99,11 +114,13 @@ class ValuationEngine:
             if movement.movement_type is MovementType.EXPENSE:
                 layers = available_layers.get(valuation_input.valuation_key)
                 if layers is None:
-                    layers = self._layer_reader.find_available_layers(valuation_input.valuation_key)
+                    layers = state.find_available_layers(valuation_input.valuation_key)
                     available_layers[valuation_input.valuation_key] = layers
 
                 request = ConsumptionRequest(
-                    identity=Identifier.new(),
+                    identity=self._preparation_identity_factory.consumption_request(
+                        context.operation_identity, valuation_input.source_identity
+                    ),
                     valuation_key=valuation_input.valuation_key,
                     quantity=valuation_input.quantity,
                     document_identity=valuation_input.document_identity,

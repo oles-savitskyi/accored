@@ -122,22 +122,23 @@ class InMemoryPostingResultCoordinator:
     def __init__(self) -> None:
         self.effects: dict[Identifier, tuple] = {}
 
-    def prepare(self, document, movement_set):
+    def prepare(self, document, movement_set, context):
         from accore.platform.posting import RegisterPostingPlan
 
-        del document
+        del document, context
         return RegisterPostingPlan(movements=movement_set)
 
-    def establish(self, document, movement_set, plan):
+    def establish(self, document, movement_set, plan, operation_identity):
         from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
 
-        del movement_set
+        del movement_set, operation_identity
         self.effects[document.identity] = tuple(plan.movements.movements)
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
-    def remove(self, document):
+    def remove(self, document, operation_identity):
         from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
 
+        del operation_identity
         self.effects.pop(document.identity, None)
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
@@ -158,7 +159,8 @@ class FailingPostingResultCoordinator(InMemoryPostingResultCoordinator):
         super().__init__()
         self.error = error
 
-    def establish(self, document, movement_set, plan) -> None:
+    def establish(self, document, movement_set, plan, operation_identity) -> None:
+        del document, movement_set, plan, operation_identity
         raise self.error
 
 

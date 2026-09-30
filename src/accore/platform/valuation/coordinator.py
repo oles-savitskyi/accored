@@ -20,6 +20,7 @@ from .errors import (
     ValuationPersistenceError,
     ValuationValidationError,
 )
+from .fact_builder import DefaultValuationFactBuilder, ValuationFactBuilder
 from .fact_identity import DefaultValuationFactIdentityFactory
 from .facts import (
     ValuationConsumption,
@@ -31,6 +32,7 @@ from .facts import (
 )
 from .key import ValuationKey
 from .operations import (
+    ValuationEstablishRecoveryDescriptor,
     ValuationOperationIdentity,
     ValuationOperationRecord,
     ValuationOperationType,
@@ -43,14 +45,13 @@ from .persistence import (
 from .plan import (
     ConsumptionPlan,
     LayerEstablishmentPlan,
-    PersistedLayerReference,
-    PlannedLayerReference,
     ValuationPlan,
 )
 from .rebuild import (
     DefaultValuationCostMovementIdentityFactory,
     ValuationCostMovementIdentityFactory,
     ValuationCostMovementRole,
+    ValuationRebuilder,
 )
 from .recovery import (
     DefaultValuationOperationRecoveryService,
@@ -180,9 +181,17 @@ class ValuationRemovalResult:
 
 
 class ValuationLifecycleCoordinator(Protocol):
-    def establish(self, plan: ValuationPlan) -> ValuationEstablishmentResult: ...
+    def establish(
+        self,
+        plan: ValuationPlan,
+        operation_identity: ValuationOperationIdentity,
+    ) -> ValuationEstablishmentResult: ...
 
-    def remove(self, document_identity: Identifier) -> ValuationRemovalResult: ...
+    def remove(
+        self,
+        document_identity: Identifier,
+        operation_identity: ValuationOperationIdentity,
+    ) -> ValuationRemovalResult: ...
 
     def recover(
         self,
@@ -206,6 +215,7 @@ class DefaultValuationCoordinator:
         validator: ValuationPlanValidator,
         fact_identity_factory: ValuationFactIdentityFactory | None = None,
         fact_recovery_service: ValuationFactRecoveryService | None = None,
+        rebuilder: ValuationRebuilder,
         movement_identity_factory: ValuationCostMovementIdentityFactory | None = None,
     ) -> None:
         self._fact_persistence = fact_persistence
@@ -214,6 +224,9 @@ class DefaultValuationCoordinator:
         self._totals_engine = totals_engine
         self._validator = validator
         self._fact_identity_factory = fact_identity_factory or DefaultValuationFactIdentityFactory()
+        self._fact_builder: ValuationFactBuilder = DefaultValuationFactBuilder(
+            fact_identity_factory=self._fact_identity_factory
+        )
         self._movement_identity_factory = (
             movement_identity_factory or DefaultValuationCostMovementIdentityFactory()
         )
@@ -225,6 +238,8 @@ class DefaultValuationCoordinator:
             fact_persistence=fact_persistence,
             fact_recovery_service=self._fact_recovery_service,
             fact_identity_factory=self._fact_identity_factory,
+            fact_builder=self._fact_builder,
+            rebuilder=rebuilder,
         )
 
     def _register_operation(
@@ -286,7 +301,11 @@ class DefaultValuationCoordinator:
         except PersistenceError as exc:
             return ValuationEstablishmentOutcome.INDETERMINATE, exc
 
-    def establish(self, plan: ValuationPlan) -> ValuationEstablishmentResult:
+    def establish(
+        self,
+        plan: ValuationPlan,
+        operation_identity: ValuationOperationIdentity | None = None,
+    ) -> ValuationEstablishmentResult:
         try:
             self._validator.validate(plan)
         except ValuationValidationError as exc:
@@ -295,11 +314,17 @@ class DefaultValuationCoordinator:
                 exc,
             )
 
+        document_identity = self._establish_document_identity(plan)
+        descriptor = ValuationEstablishRecoveryDescriptor(
+            document_identity=document_identity,
+            operations=plan.operations,
+        )
         operation = ValuationOperationRecord(
-            identity=ValuationOperationIdentity(str(Identifier.new())),
+            identity=operation_identity or ValuationOperationIdentity(str(Identifier.new())),
             operation_type=ValuationOperationType.ESTABLISH,
-            document_identity=self._establish_document_identity(plan),
+            document_identity=document_identity,
             fingerprint=_establish_fingerprint(plan),
+            establish_descriptor=descriptor,
         )
 
         outcome, error = self._register_operation(operation)
@@ -307,7 +332,8 @@ class DefaultValuationCoordinator:
             return ValuationEstablishmentResult(outcome, error)
 
         try:
-            facts, movements = self._construct(plan, operation.identity)
+            facts = self._fact_builder.build(plan, operation.identity)
+            movements = self._build_original_movements(facts)
             self._append_or_recover_facts(operation, facts)
             self._result_persistence.append_movements(movements)
 
@@ -357,7 +383,11 @@ class DefaultValuationCoordinator:
 
         return next(iter(document_identities))
 
-    def remove(self, document_identity: Identifier) -> ValuationRemovalResult:
+    def remove(
+        self,
+        document_identity: Identifier,
+        operation_identity: ValuationOperationIdentity | None = None,
+    ) -> ValuationRemovalResult:
         all_facts = tuple(self._fact_persistence.enumerate())
 
         try:
@@ -388,7 +418,7 @@ class DefaultValuationCoordinator:
             tuple(fact.identity for fact in targets)
         )
         operation = ValuationOperationRecord(
-            identity=ValuationOperationIdentity(str(Identifier.new())),
+            identity=operation_identity or ValuationOperationIdentity(str(Identifier.new())),
             operation_type=ValuationOperationType.REMOVE,
             document_identity=document_identity,
             fingerprint=_remove_fingerprint(
@@ -616,109 +646,43 @@ class DefaultValuationCoordinator:
         for balance in balances.values():
             self._result_persistence.replace_balance(balance)
 
-    def _construct(
+    def _build_original_movements(
         self,
-        plan: ValuationPlan,
-        operation_identity: ValuationOperationIdentity,
-    ) -> tuple[tuple[ValuationFact, ...], tuple[CostMovement, ...]]:
-        references: dict[PlannedLayerReference, Identifier] = {}
-        facts: list[ValuationFact] = []
+        facts: tuple[ValuationFact, ...],
+    ) -> tuple[CostMovement, ...]:
         movements: list[CostMovement] = []
 
-        for operation in plan.operations:
-            if isinstance(operation, LayerEstablishmentPlan):
-                identity = self._fact_identity_factory.for_operation_fact(
-                    operation_identity,
-                    ValuationFactType.LAYER,
-                    (
-                        operation.valuation_key,
-                        operation.quantity,
-                        operation.source_document_identity,
-                        operation.source_movement_identity,
-                        operation.created_at,
-                    ),
-                )
-                references[operation.reference] = identity
-                facts.append(
-                    ValuationLayer(
-                        identity=identity,
-                        operation_identity=operation_identity,
-                        valuation_key=operation.valuation_key,
-                        quantity=operation.quantity,
-                        total_cost=Decimal(0),
-                        source_document_identity=operation.source_document_identity,
-                        source_movement_identity=operation.source_movement_identity,
-                        created_at=operation.created_at,
-                    )
-                )
+        for fact in facts:
+            if isinstance(fact, ValuationLayer):
                 movements.append(
                     CostMovement(
                         identity=self._movement_identity_factory.create(
-                            facts[-1], ValuationCostMovementRole.ORIGINAL
+                            fact, ValuationCostMovementRole.ORIGINAL
                         ),
-                        valuation_key=operation.valuation_key,
-                        quantity=operation.quantity,
-                        cost=Decimal(0),
-                        source_identity=operation.source_movement_identity,
-                        created_at=operation.created_at,
+                        valuation_key=fact.valuation_key,
+                        quantity=fact.quantity,
+                        cost=fact.total_cost,
+                        source_identity=fact.source_movement_identity,
+                        created_at=fact.created_at,
                     )
                 )
                 continue
 
-            if isinstance(operation, ConsumptionPlan):
-                layer_identity = self._resolve_reference(operation, references)
-                facts.append(
-                    ValuationConsumption(
-                        identity=self._fact_identity_factory.for_operation_fact(
-                            operation_identity,
-                            ValuationFactType.CONSUMPTION,
-                            (
-                                layer_identity,
-                                operation.valuation_key,
-                                operation.quantity,
-                                operation.cost,
-                                operation.document_identity,
-                                operation.source_identity,
-                                operation.created_at,
-                            ),
-                        ),
-                        operation_identity=operation_identity,
-                        valuation_key=operation.valuation_key,
-                        layer_identity=layer_identity,
-                        quantity=operation.quantity,
-                        cost=operation.cost,
-                        document_identity=operation.document_identity,
-                        source_identity=operation.source_identity,
-                        created_at=operation.created_at,
-                    )
-                )
+            if isinstance(fact, ValuationConsumption):
                 movements.append(
                     CostMovement(
                         identity=self._movement_identity_factory.create(
-                            facts[-1], ValuationCostMovementRole.ORIGINAL
+                            fact, ValuationCostMovementRole.ORIGINAL
                         ),
-                        valuation_key=operation.valuation_key,
-                        quantity=-operation.quantity,
-                        cost=-operation.cost,
-                        source_identity=operation.source_identity,
-                        created_at=operation.created_at,
+                        valuation_key=fact.valuation_key,
+                        quantity=-fact.quantity,
+                        cost=-fact.cost,
+                        source_identity=fact.source_identity,
+                        created_at=fact.created_at,
                     )
                 )
                 continue
 
-            raise TypeError("ValuationPlan contains an unsupported operation.")
+            raise TypeError("Unsupported valuation fact type for original movement construction.")
 
-        return tuple(facts), tuple(movements)
-
-    @staticmethod
-    def _resolve_reference(
-        operation: ConsumptionPlan,
-        references: dict[PlannedLayerReference, Identifier],
-    ) -> Identifier:
-        reference = operation.layer_reference
-        if isinstance(reference, PersistedLayerReference):
-            return reference.identity
-        try:
-            return references[reference]
-        except KeyError as exc:
-            raise ValueError("Planned layer reference was not resolved.") from exc
+        return tuple(movements)

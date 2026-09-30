@@ -6,7 +6,10 @@ from decimal import Decimal
 from accore.platform.foundation import Identifier
 from accore.platform.persistence import PersistenceIndeterminateError
 from accore.platform.valuation import (
+    LayerEstablishmentPlan,
+    PlannedLayerReference,
     ValuationConflictError,
+    ValuationEstablishRecoveryDescriptor,
     ValuationFact,
     ValuationFactRecoveryOutcome,
     ValuationFactRecoveryService,
@@ -39,11 +42,26 @@ def _layer(identity: Identifier | None = None) -> ValuationLayer:
 
 
 def _operation() -> ValuationOperationRecord:
+    document_identity = _id()
+    descriptor = ValuationEstablishRecoveryDescriptor(
+        document_identity=document_identity,
+        operations=(
+            LayerEstablishmentPlan(
+                reference=PlannedLayerReference(_id()),
+                valuation_key=KEY,
+                quantity=Decimal(10),
+                source_document_identity=document_identity,
+                source_movement_identity=_id(),
+                created_at=WHEN,
+            ),
+        ),
+    )
     return ValuationOperationRecord(
         identity=ValuationOperationIdentity("operation-001"),
         operation_type=ValuationOperationType.ESTABLISH,
-        document_identity=_id(),
+        document_identity=document_identity,
         fingerprint="fingerprint",
+        establish_descriptor=descriptor,
     )
 
 

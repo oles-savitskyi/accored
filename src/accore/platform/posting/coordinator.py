@@ -6,6 +6,8 @@ from typing import Protocol
 
 from accore.platform.object import ObjectInstance
 
+from .context import PostingPreparationContext
+from .identity import PostingOperationIdentity
 from .movement_set import MovementSet
 
 
@@ -42,6 +44,7 @@ class PostingResultParticipant(Protocol):
         self,
         document: ObjectInstance,
         movement_set: MovementSet,
+        context: PostingPreparationContext,
     ) -> object: ...
 
     def establish(
@@ -49,19 +52,34 @@ class PostingResultParticipant(Protocol):
         document: ObjectInstance,
         movement_set: MovementSet,
         plan: object,
+        operation_identity: PostingOperationIdentity,
     ) -> PostingLifecycleResult: ...
 
-    def remove(self, document: ObjectInstance) -> PostingLifecycleResult: ...
+    def remove(
+        self,
+        document: ObjectInstance,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult: ...
 
 
 class PostingResultCoordinator(Protocol):
-    def prepare(self, document: ObjectInstance, movement_set: MovementSet) -> PostingResultPlan: ...
+    def prepare(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        context: PostingPreparationContext,
+    ) -> PostingResultPlan: ...
 
     def establish(
         self,
         document: ObjectInstance,
         movement_set: MovementSet,
         plan: PostingResultPlan,
+        operation_identity: PostingOperationIdentity,
     ) -> PostingLifecycleResult: ...
 
-    def remove(self, document: ObjectInstance) -> PostingLifecycleResult: ...
+    def remove(
+        self,
+        document: ObjectInstance,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult: ...

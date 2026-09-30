@@ -8,7 +8,9 @@ from accore.platform.persistence import RegisterFactPersistence
 from accore.platform.persistence.errors import PersistenceError, PersistenceIndeterminateError
 from accore.platform.registers import RegisterMutationOrchestrator
 
+from .context import PostingPreparationContext
 from .coordinator import PostingLifecycleOutcome, PostingLifecycleResult, RegisterPostingPlan
+from .identity import PostingOperationIdentity
 from .movement_set import MovementSet
 
 
@@ -31,8 +33,13 @@ class RegisterPostingResultCoordinator:
         self._persistence = persistence
         self._register_identities = identities
 
-    def prepare(self, document: ObjectInstance, movement_set: MovementSet) -> RegisterPostingPlan:
-        del document
+    def prepare(
+        self,
+        document: ObjectInstance,
+        movement_set: MovementSet,
+        context: PostingPreparationContext,
+    ) -> RegisterPostingPlan:
+        del document, context
         return RegisterPostingPlan(movements=movement_set)
 
     def establish(
@@ -40,8 +47,9 @@ class RegisterPostingResultCoordinator:
         document: ObjectInstance,
         movement_set: MovementSet,
         plan: object,
+        operation_identity: PostingOperationIdentity,
     ) -> PostingLifecycleResult:
-        del document, movement_set
+        del document, movement_set, operation_identity
         if not isinstance(plan, RegisterPostingPlan):
             raise TypeError("Register participant received an invalid posting plan.")
         try:
@@ -52,7 +60,12 @@ class RegisterPostingResultCoordinator:
             return PostingLifecycleResult(PostingLifecycleOutcome.FAILURE, exc)
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
-    def remove(self, document: ObjectInstance) -> PostingLifecycleResult:
+    def remove(
+        self,
+        document: ObjectInstance,
+        operation_identity: PostingOperationIdentity,
+    ) -> PostingLifecycleResult:
+        del operation_identity
         try:
             for register_identity in self._register_identities:
                 movements = self._persistence.find_by_source_document(

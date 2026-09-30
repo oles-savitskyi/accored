@@ -14,6 +14,7 @@ from accore.platform.valuation import (
     DefaultValuationFactIdentityFactory,
     DefaultValuationFactToCostMovementProjector,
     DefaultValuationPlanValidator,
+    DefaultValuationRebuilder,
     LayerEstablishmentPlan,
     PersistedLayerReference,
     PlannedLayerReference,
@@ -145,6 +146,12 @@ class FakeResultPersistence:
     def append_movements(self, movements: Sequence[CostMovement]) -> None:
         self.movements.extend(movements)
 
+    def reconcile_movements(self, movements: Sequence[CostMovement]) -> None:
+        self.movements = list(movements)
+
+    def enumerate_movements(self) -> tuple[CostMovement, ...]:
+        return tuple(self.movements)
+
     def replace_balance(self, balance: CostBalance) -> None:
         if self.fail_on_balance:
             raise self.fail_on_balance
@@ -186,12 +193,20 @@ def coordinator(
     result_persistence: FakeResultPersistence | None = None,
     operation_persistence: FakeOperationPersistence | None = None,
 ) -> DefaultValuationCoordinator:
+    facts = fact_persistence or FakeFactPersistence()
+    results = result_persistence or FakeResultPersistence()
+    totals_engine = DefaultCostTotalsEngine()
     return DefaultValuationCoordinator(
-        fact_persistence=fact_persistence or FakeFactPersistence(),
-        result_persistence=result_persistence or FakeResultPersistence(),
+        fact_persistence=facts,
+        result_persistence=results,
         operation_persistence=operation_persistence or FakeOperationPersistence(),
-        totals_engine=DefaultCostTotalsEngine(),
-        validator=DefaultValuationPlanValidator(fact_persistence),
+        totals_engine=totals_engine,
+        validator=DefaultValuationPlanValidator(facts),
+        rebuilder=DefaultValuationRebuilder(
+            fact_persistence=facts,
+            result_persistence=results,
+            totals_engine=totals_engine,
+        ),
     )
 
 

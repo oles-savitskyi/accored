@@ -17,6 +17,7 @@ from .errors import (
     ValuationPersistenceError,
     ValuationValidationError,
 )
+from .fact_builder import DefaultValuationFactBuilder, ValuationFactBuilder
 from .fact_identity import DefaultValuationFactIdentityFactory
 from .facts import (
     ValuationConsumption,
@@ -32,6 +33,8 @@ from .operations import (
     ValuationOperationType,
 )
 from .persistence import ValuationFactPersistence, ValuationOperationPersistence
+from .plan import ValuationPlan
+from .rebuild import ValuationRebuilder, ValuationRebuildOutcome
 
 
 class ValuationFactRecoveryOutcome(StrEnum):
@@ -74,12 +77,18 @@ class DefaultValuationOperationRecoveryService:
         operation_persistence: ValuationOperationPersistence,
         fact_persistence: ValuationFactPersistence,
         fact_recovery_service: ValuationFactRecoveryService,
+        rebuilder: ValuationRebuilder,
         fact_identity_factory: ValuationFactIdentityFactory | None = None,
+        fact_builder: ValuationFactBuilder | None = None,
     ) -> None:
         self._operation_persistence = operation_persistence
         self._fact_persistence = fact_persistence
         self._fact_recovery_service = fact_recovery_service
         self._fact_identity_factory = fact_identity_factory or DefaultValuationFactIdentityFactory()
+        self._fact_builder = fact_builder or DefaultValuationFactBuilder(
+            fact_identity_factory=self._fact_identity_factory
+        )
+        self._rebuilder = rebuilder
 
     def recover(
         self,
@@ -98,10 +107,13 @@ class DefaultValuationOperationRecoveryService:
                 ValuationNotFoundError("Valuation operation was not found."),
             )
 
+        if operation.operation_type is ValuationOperationType.ESTABLISH:
+            return self._recover_establish(operation)
+
         if operation.operation_type is not ValuationOperationType.REMOVE:
             return ValuationRecoveryResult(
                 ValuationRecoveryOutcome.FAILURE,
-                ValuationValidationError("Only REMOVE valuation operations are recoverable."),
+                ValuationValidationError("Unsupported valuation operation type."),
             )
 
         target_ids = operation.target_fact_identities
@@ -150,10 +162,58 @@ class DefaultValuationOperationRecoveryService:
 
         reversal_facts = self._build_reversal_facts(operation, tuple(targets))
         recovery = self._fact_recovery_service.reconcile(operation, reversal_facts)
+        return self._complete_recovery(recovery)
 
+    def _recover_establish(
+        self,
+        operation: ValuationOperationRecord,
+    ) -> ValuationRecoveryResult:
+        descriptor = operation.establish_descriptor
+        if descriptor is None:
+            return ValuationRecoveryResult(
+                ValuationRecoveryOutcome.FAILURE,
+                ValuationValidationError(
+                    "ESTABLISH operation does not contain a recovery descriptor."
+                ),
+            )
+
+        if descriptor.document_identity != operation.document_identity:
+            return ValuationRecoveryResult(
+                ValuationRecoveryOutcome.FAILURE,
+                ValuationValidationError(
+                    "ESTABLISH recovery descriptor document identity does not match "
+                    "the operation."
+                ),
+            )
+
+        try:
+            plan = ValuationPlan(
+                document_identity=descriptor.document_identity,
+                operations=descriptor.operations,
+            )
+            expected_facts = self._fact_builder.build(plan, operation.identity)
+        except (TypeError, ValueError, ValuationValidationError) as exc:
+            return ValuationRecoveryResult(ValuationRecoveryOutcome.FAILURE, exc)
+
+        recovery = self._fact_recovery_service.reconcile(operation, expected_facts)
+        return self._complete_recovery(recovery)
+
+    def _complete_recovery(
+        self,
+        fact_recovery: ValuationFactRecoveryResult,
+    ) -> ValuationRecoveryResult:
+        if fact_recovery.outcome is not ValuationFactRecoveryOutcome.SUCCESS:
+            return ValuationRecoveryResult(
+                ValuationRecoveryOutcome(fact_recovery.outcome.value),
+                fact_recovery.error,
+            )
+
+        rebuild = self._rebuilder.rebuild()
+        if rebuild.outcome is ValuationRebuildOutcome.SUCCESS:
+            return ValuationRecoveryResult(ValuationRecoveryOutcome.SUCCESS)
         return ValuationRecoveryResult(
-            ValuationRecoveryOutcome(recovery.outcome.value),
-            recovery.error,
+            ValuationRecoveryOutcome(rebuild.outcome.value),
+            rebuild.error,
         )
 
     def _build_reversal_facts(

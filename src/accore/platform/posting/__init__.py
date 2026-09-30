@@ -1,7 +1,12 @@
 from typing import Any
 
 from accore.platform.posting.api import DefaultPostingAPI, PostingAPI
-from accore.platform.posting.context import DocumentStateProvider, PostingContext, PostingServices
+from accore.platform.posting.context import (
+    DocumentStateProvider,
+    PostingContext,
+    PostingPreparationContext,
+    PostingServices,
+)
 from accore.platform.posting.coordinator import (
     PostingLifecycleOutcome,
     PostingLifecycleResult,
@@ -32,6 +37,13 @@ from accore.platform.posting.handlers import (
     PostingHandler,
     PostingHandlerResolver,
 )
+from accore.platform.posting.identity import (
+    DefaultPostingOperationIdentityFactory,
+    DefaultPostingParticipantOperationIdentityFactory,
+    PostingOperationIdentity,
+    PostingOperationIdentityFactory,
+    PostingParticipantOperationIdentityFactory,
+)
 from accore.platform.posting.movement_set import MovementSet
 from accore.platform.posting.register_coordinator import RegisterPostingResultCoordinator
 from accore.platform.posting.result import PostingOutcome, PostingResult
@@ -39,6 +51,8 @@ from accore.platform.posting.result import PostingOutcome, PostingResult
 __all__ = [
     "CompositePostingResultCoordinator",
     "DefaultPostingAPI",
+    "DefaultPostingOperationIdentityFactory",
+    "DefaultPostingParticipantOperationIdentityFactory",
     "DocumentPosted",
     "DocumentReposted",
     "DocumentStateProvider",
@@ -60,8 +74,12 @@ __all__ = [
     "PostingLifecycleOutcome",
     "PostingLifecycleResult",
     "PostingMovementValidationError",
+    "PostingOperationIdentity",
+    "PostingOperationIdentityFactory",
     "PostingOutcome",
+    "PostingParticipantOperationIdentityFactory",
     "PostingPersistenceError",
+    "PostingPreparationContext",
     "PostingResult",
     "PostingResultCoordinator",
     "PostingResultParticipant",

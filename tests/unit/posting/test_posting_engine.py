@@ -14,6 +14,7 @@ from accore.platform.posting import (
     MappingPostingHandlerResolver,
     PostingContextFactory,
     PostingEngine,
+    PostingOperationIdentity,
     PostingOutcome,
     PostingServices,
 )
@@ -100,20 +101,35 @@ class ContractResolver:
         return InventoryRegisterPostingContract()
 
 
+class FixedOperationIdentityFactory:
+    def __init__(self):
+        self.identities = []
+
+    def new(self):
+        identity = PostingOperationIdentity(f"operation-{len(self.identities) + 1}")
+        self.identities.append(identity)
+        return identity
+
+
 class Coordinator:
     def __init__(self):
         self.effects = {}
         self.fail_with = None
+        self.operation_identities = []
+        self.preparation_contexts = []
 
-    def prepare(self, document, movement_set):
+    def prepare(self, document, movement_set, context):
         from accore.platform.posting import RegisterPostingPlan
 
+        self.operation_identities.append(context.operation_identity)
+        self.preparation_contexts.append(context)
         del document
         return RegisterPostingPlan(movements=movement_set)
 
-    def establish(self, document, movement_set, plan):
+    def establish(self, document, movement_set, plan, operation_identity):
         from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
 
+        self.operation_identities.append(operation_identity)
         del movement_set
         if self.fail_with is not None:
             error, self.fail_with = self.fail_with, None
@@ -121,9 +137,10 @@ class Coordinator:
         self.effects[document.identity] = tuple(plan.movements.movements)
         return PostingLifecycleResult(PostingLifecycleOutcome.SUCCESS)
 
-    def remove(self, document):
+    def remove(self, document, operation_identity):
         from accore.platform.posting import PostingLifecycleOutcome, PostingLifecycleResult
 
+        self.operation_identities.append(operation_identity)
         if self.fail_with is not None:
             error, self.fail_with = self.fail_with, None
             raise error
@@ -152,14 +169,47 @@ def build_api(document, document_state, clock, coordinator=None):
     )
     validator = DefaultMovementValidator(ContractResolver())
     services = PostingServices(StateProvider({document.identity: document_state}))
-    engine = PostingEngine(resolver, PostingContextFactory(services, clock), validator, coordinator)
-    return DefaultPostingAPI(engine), coordinator
+    identity_factory = FixedOperationIdentityFactory()
+    engine = PostingEngine(
+        resolver,
+        PostingContextFactory(services, clock),
+        validator,
+        coordinator,
+        operation_identity_factory=identity_factory,
+    )
+    return DefaultPostingAPI(engine), coordinator, identity_factory
+
+
+def test_posting_engine_uses_one_identity_for_each_logical_lifecycle() -> None:
+    document = make_document()
+    clock = FixedClock(datetime(2026, 9, 16, 12, 0, tzinfo=UTC))
+    api, coordinator, identity_factory = build_api(document, state(line("P1", "W1", "1")), clock)
+
+    assert api.post(document).is_success
+    assert api.unpost(document).is_success
+    assert api.repost(document).is_success
+
+    assert identity_factory.identities == [
+        PostingOperationIdentity("operation-1"),
+        PostingOperationIdentity("operation-2"),
+        PostingOperationIdentity("operation-3"),
+    ]
+    assert coordinator.operation_identities == [
+        PostingOperationIdentity("operation-1"),
+        PostingOperationIdentity("operation-1"),
+        PostingOperationIdentity("operation-2"),
+        PostingOperationIdentity("operation-3"),
+        PostingOperationIdentity("operation-3"),
+        PostingOperationIdentity("operation-3"),
+    ]
+    assert coordinator.preparation_contexts[0].replacement_document_identity is None
+    assert coordinator.preparation_contexts[1].replacement_document_identity == document.identity
 
 
 def test_posting_generates_inventory_fact() -> None:
     document = make_document()
     clock = FixedClock(datetime(2026, 9, 16, 12, 0, tzinfo=UTC))
-    api, coordinator = build_api(document, state(line("P1", "W1", "2.5")), clock)
+    api, coordinator, _identity_factory = build_api(document, state(line("P1", "W1", "2.5")), clock)
 
     result = api.post(document)
 
@@ -176,7 +226,7 @@ def test_posting_generates_inventory_fact() -> None:
 
 def test_empty_goods_receipt_fails_without_effect() -> None:
     document = make_document()
-    api, coordinator = build_api(
+    api, coordinator, _identity_factory = build_api(
         document,
         state(),
         FixedClock(datetime(2026, 9, 16, 12, 0, tzinfo=UTC)),
@@ -191,20 +241,22 @@ def test_empty_goods_receipt_fails_without_effect() -> None:
 def test_repost_replaces_old_inventory_effects() -> None:
     document = make_document()
     clock = FixedClock(datetime(2026, 9, 16, 12, 0, tzinfo=UTC))
-    api, coordinator = build_api(document, state(line("P1", "W1", "2")), clock)
+    api, coordinator, _identity_factory = build_api(document, state(line("P1", "W1", "2")), clock)
 
     assert api.post(document).is_success
     assert coordinator.inventory_quantity("P1", "W1") == 2
 
     # The provider is deliberately replaced to model the current document state.
-    api, _ = build_api(document, state(line("P1", "W1", "5")), clock, coordinator)
+    api, _, _identity_factory = build_api(
+        document, state(line("P1", "W1", "5")), clock, coordinator
+    )
     assert api.repost(document).is_success
     assert coordinator.inventory_quantity("P1", "W1") == 5
 
 
 def test_unpost_removes_inventory_effect() -> None:
     document = make_document()
-    api, coordinator = build_api(
+    api, coordinator, _identity_factory = build_api(
         document, state(line("P1", "W1", "3")), FixedClock(datetime(2026, 9, 16, tzinfo=UTC))
     )
     assert api.post(document).is_success
@@ -215,7 +267,7 @@ def test_unpost_removes_inventory_effect() -> None:
 def test_known_persistence_failure_is_failure() -> None:
     document = make_document()
     clock = FixedClock(datetime(2026, 9, 16, tzinfo=UTC))
-    api, coordinator = build_api(document, state(line("P1", "W1", "1")), clock)
+    api, coordinator, _identity_factory = build_api(document, state(line("P1", "W1", "1")), clock)
     coordinator.fail_with = PersistenceFailure("write failed")
 
     result = api.post(document)
@@ -226,7 +278,7 @@ def test_known_persistence_failure_is_failure() -> None:
 def test_indeterminate_persistence_failure_is_indeterminate() -> None:
     document = make_document()
     clock = FixedClock(datetime(2026, 9, 16, tzinfo=UTC))
-    api, coordinator = build_api(document, state(line("P1", "W1", "1")), clock)
+    api, coordinator, _identity_factory = build_api(document, state(line("P1", "W1", "1")), clock)
     coordinator.fail_with = PersistenceIndeterminateError("unknown")
 
     result = api.post(document)

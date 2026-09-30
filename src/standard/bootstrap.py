@@ -40,6 +40,7 @@ from accore.platform.valuation import (
     DefaultCostTotalsEngine,
     DefaultValuationCoordinator,
     DefaultValuationPlanValidator,
+    DefaultValuationPreparationStateFactory,
     DefaultValuationRebuilder,
     FIFOValuationMethod,
     ValuationEngine,
@@ -157,25 +158,30 @@ class StandardConfigurationBootstrap:
         key_mapper = InventoryValuationKeyMapper()
         input_provider = InventoryValuationInputProvider(key_mapper)
         operation_persistence = StandardValuationOperationPersistence()
+        preparation_state_factory = DefaultValuationPreparationStateFactory(fact_persistence)
         valuation_engine = ValuationEngine(
             input_provider=input_provider,
-            layer_reader=fact_persistence,
+            preparation_state_factory=preparation_state_factory,
             method=FIFOValuationMethod(),
         )
         totals_engine = DefaultCostTotalsEngine()
         validator = DefaultValuationPlanValidator(fact_persistence)
+        valuation_rebuilder = DefaultValuationRebuilder(
+            fact_persistence=fact_persistence,
+            result_persistence=result_persistence,
+            totals_engine=totals_engine,
+        )
         lifecycle = DefaultValuationCoordinator(
             fact_persistence=fact_persistence,
             operation_persistence=operation_persistence,
             result_persistence=result_persistence,
             totals_engine=totals_engine,
             validator=validator,
+            rebuilder=valuation_rebuilder,
         )
-        valuation_posting = ValuationPostingCoordinator(valuation_engine, lifecycle)
-        valuation_rebuilder = DefaultValuationRebuilder(
-            fact_persistence=fact_persistence,
-            result_persistence=result_persistence,
-            totals_engine=totals_engine,
+        valuation_posting = ValuationPostingCoordinator(
+            valuation_engine,
+            lifecycle,
         )
         posting_result_coordinator = CompositePostingResultCoordinator(
             (register.posting_result_coordinator, valuation_posting)

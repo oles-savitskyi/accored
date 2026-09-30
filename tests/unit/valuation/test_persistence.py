@@ -333,17 +333,36 @@ def test_result_persistence_enumerates_balances() -> None:
 
 def _operation_record() -> tuple[object, object]:
     from accore.platform.valuation import (
+        LayerEstablishmentPlan,
+        PlannedLayerReference,
+        ValuationEstablishRecoveryDescriptor,
+        ValuationKey,
         ValuationOperationIdentity,
         ValuationOperationRecord,
         ValuationOperationType,
     )
 
     identity = ValuationOperationIdentity("operation-001")
+    document_identity = _identifier()
+    descriptor = ValuationEstablishRecoveryDescriptor(
+        document_identity=document_identity,
+        operations=(
+            LayerEstablishmentPlan(
+                reference=PlannedLayerReference(_identifier()),
+                valuation_key=ValuationKey({"product": "PRODUCT-001"}),
+                quantity=Decimal(10),
+                source_document_identity=document_identity,
+                source_movement_identity=_identifier(),
+                created_at=_created_at(),
+            ),
+        ),
+    )
     record = ValuationOperationRecord(
         identity=identity,
         operation_type=ValuationOperationType.ESTABLISH,
-        document_identity=_identifier(),
+        document_identity=document_identity,
         fingerprint="fingerprint-001",
+        establish_descriptor=descriptor,
     )
     return identity, record
 
@@ -362,6 +381,10 @@ def test_operation_persistence_appends_and_finds_record() -> None:
 
 def test_operation_persistence_finds_by_document() -> None:
     from accore.platform.valuation import (
+        LayerEstablishmentPlan,
+        PlannedLayerReference,
+        ValuationEstablishRecoveryDescriptor,
+        ValuationKey,
         ValuationOperationIdentity,
         ValuationOperationRecord,
         ValuationOperationType,
@@ -376,11 +399,25 @@ def test_operation_persistence_finds_by_document() -> None:
         document_identity=document_identity,
         fingerprint="fingerprint-001",
     )
+    other_document_identity = _identifier()
     other = ValuationOperationRecord(
         identity=ValuationOperationIdentity("operation-002"),
         operation_type=ValuationOperationType.ESTABLISH,
-        document_identity=_identifier(),
+        document_identity=other_document_identity,
         fingerprint="fingerprint-002",
+        establish_descriptor=ValuationEstablishRecoveryDescriptor(
+            document_identity=other_document_identity,
+            operations=(
+                LayerEstablishmentPlan(
+                    reference=PlannedLayerReference(_identifier()),
+                    valuation_key=ValuationKey({"product": "PRODUCT-002"}),
+                    quantity=Decimal(10),
+                    source_document_identity=other_document_identity,
+                    source_movement_identity=_identifier(),
+                    created_at=_created_at(),
+                ),
+            ),
+        ),
     )
 
     persistence.append(operation)
@@ -405,7 +442,11 @@ def test_operation_persistence_rejects_conflicting_identity() -> None:
     import pytest
 
     from accore.platform.valuation import (
+        LayerEstablishmentPlan,
+        PlannedLayerReference,
         ValuationConflictError,
+        ValuationEstablishRecoveryDescriptor,
+        ValuationKey,
         ValuationOperationIdentity,
         ValuationOperationRecord,
         ValuationOperationType,
@@ -414,11 +455,25 @@ def test_operation_persistence_rejects_conflicting_identity() -> None:
 
     persistence = StandardValuationOperationPersistence()
     identity = ValuationOperationIdentity("operation-001")
+    first_document_identity = _identifier()
     first = ValuationOperationRecord(
         identity=identity,
         operation_type=ValuationOperationType.ESTABLISH,
-        document_identity=_identifier(),
+        document_identity=first_document_identity,
         fingerprint="fingerprint-001",
+        establish_descriptor=ValuationEstablishRecoveryDescriptor(
+            document_identity=first_document_identity,
+            operations=(
+                LayerEstablishmentPlan(
+                    reference=PlannedLayerReference(_identifier()),
+                    valuation_key=ValuationKey({"product": "PRODUCT-001"}),
+                    quantity=Decimal(10),
+                    source_document_identity=first_document_identity,
+                    source_movement_identity=_identifier(),
+                    created_at=_created_at(),
+                ),
+            ),
+        ),
     )
     second = ValuationOperationRecord(
         identity=identity,

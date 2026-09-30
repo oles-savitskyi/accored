@@ -12,7 +12,7 @@ from .coordinator import (
     ValuationRemovalOutcome,
     ValuationRemovalResult,
 )
-from .engine import ValuationEngine, ValuationLayerReader
+from .engine import ValuationEngine
 from .errors import (
     ValuationConflictError,
     ValuationError,
@@ -36,6 +36,7 @@ from .input import ValuationInput
 from .input_provider import ValuationInputProvider, ValuationKeyMapper
 from .key import ValuationKey
 from .operations import (
+    ValuationEstablishRecoveryDescriptor,
     ValuationOperationIdentity,
     ValuationOperationRecord,
     ValuationOperationType,
@@ -53,6 +54,15 @@ from .plan import (
     PlannedLayerReference,
     ValuationPlan,
     ValuationPlanOperation,
+)
+from .preparation import (
+    DefaultValuationPreparationIdentityFactory,
+    ValuationPreparationContext,
+    ValuationPreparationIdentityFactory,
+)
+from .preparation_state import (
+    DefaultValuationPreparationStateFactory,
+    ProjectedValuationPreparationState,
 )
 from .rebuild import (
     DefaultValuationCostMovementIdentityFactory,
@@ -92,12 +102,15 @@ __all__ = [
     "DefaultValuationFactToCostMovementProjector",
     "DefaultValuationOperationRecoveryService",
     "DefaultValuationPlanValidator",
+    "DefaultValuationPreparationIdentityFactory",
+    "DefaultValuationPreparationStateFactory",
     "DefaultValuationRebuilder",
     "FIFOValuationMethod",
     "LayerEstablishmentPlan",
     "LayerReference",
     "PersistedLayerReference",
     "PlannedLayerReference",
+    "ProjectedValuationPreparationState",
     "SyntheticConsumptionService",
     "ValuationAdjustment",
     "ValuationAllocation",
@@ -108,6 +121,7 @@ __all__ = [
     "ValuationCostMovementRole",
     "ValuationEngine",
     "ValuationError",
+    "ValuationEstablishRecoveryDescriptor",
     "ValuationEstablishmentOutcome",
     "ValuationEstablishmentResult",
     "ValuationFact",
@@ -124,7 +138,6 @@ __all__ = [
     "ValuationKey",
     "ValuationKeyMapper",
     "ValuationLayer",
-    "ValuationLayerReader",
     "ValuationLifecycleCoordinator",
     "ValuationNotFoundError",
     "ValuationOperationIdentity",
@@ -136,6 +149,8 @@ __all__ = [
     "ValuationPlan",
     "ValuationPlanOperation",
     "ValuationPlanValidator",
+    "ValuationPreparationContext",
+    "ValuationPreparationIdentityFactory",
     "ValuationRebuildOutcome",
     "ValuationRebuildResult",
     "ValuationRebuilder",
