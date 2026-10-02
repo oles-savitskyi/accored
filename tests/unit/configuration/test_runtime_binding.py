@@ -108,3 +108,29 @@ def test_binding_does_not_activate_configuration() -> None:
     binding.bind(configuration)
 
     assert binding.get() is configuration
+
+
+def test_application_configuration_projection_is_replaced_with_binding() -> None:
+    binding = RuntimeConfigurationBinding()
+    first = make_configuration(version=1)
+    second = make_configuration(version=2)
+
+    binding.bind(first, application_configuration="first")
+    first_context = binding.acquire()
+
+    binding.bind(second, application_configuration="second")
+    second_context = binding.acquire()
+
+    assert first_context.application_configuration == "first"
+    assert second_context.application_configuration == "second"
+
+
+def test_binding_without_application_configuration_captures_none() -> None:
+    binding = RuntimeConfigurationBinding()
+    configuration = make_configuration()
+
+    binding.bind(configuration)
+
+    context = binding.acquire()
+
+    assert context.application_configuration is None

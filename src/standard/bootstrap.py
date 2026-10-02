@@ -19,6 +19,7 @@ from accore.platform.posting import (
     RegisterPostingResultCoordinator,
     ValuationPostingCoordinator,
 )
+from accore.platform.processing import Processing
 from accore.platform.registers import (
     BalanceQueryService,
     DefaultBalanceQueryService,
@@ -47,8 +48,15 @@ from accore.platform.valuation import (
     DefaultValuationRebuilder,
     FIFOValuationMethod,
     ValuationEngine,
+    ValuationRebuilder,
 )
+from standard.configuration import StandardRuntimeConfiguration
 from standard.definitions.catalogs import standard_catalog_definitions
+from standard.processings import (
+    InventoryDerivedStateRebuildParameters,
+    InventoryDerivedStateRebuildProcessing,
+    InventoryDerivedStateRebuildResult,
+)
 from standard.registers.inventory import inventory_register_configuration
 from standard.reporting import InventoryBalanceReportSource
 from standard.valuation import (
@@ -99,7 +107,12 @@ class StandardConfigurationBootstrap:
         active = ConfigurationActivator().activate(candidate)
 
         binding = RuntimeConfigurationBinding()
-        binding.bind(active)
+        binding.bind(
+            active,
+            application_configuration=StandardRuntimeConfiguration(
+                inventory_register_identity=inventory_register_configuration().register_identity,
+            ),
+        )
 
         context = binding.acquire()
         resolver = RuntimeResolver(MetadataResolver())
@@ -216,4 +229,15 @@ class StandardConfigurationBootstrap:
             valuation_posting=valuation_posting,
             valuation_rebuilder=valuation_rebuilder,
             posting_result_coordinator=posting_result_coordinator,
+        )
+
+    def compose_inventory_rebuild_processing(
+        self,
+        register_maintenance: TotalsMaintenanceCoordinator,
+        valuation_rebuilder: ValuationRebuilder,
+    ) -> Processing[InventoryDerivedStateRebuildParameters, InventoryDerivedStateRebuildResult]:
+        """Compose the Standard Inventory derived-state rebuild Processing."""
+        return InventoryDerivedStateRebuildProcessing(
+            register_maintenance=register_maintenance,
+            valuation_rebuilder=valuation_rebuilder,
         )

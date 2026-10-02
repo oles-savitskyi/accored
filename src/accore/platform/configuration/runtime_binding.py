@@ -13,10 +13,16 @@ class RuntimeConfigurationBinding:
 
     def __init__(self) -> None:
         self._active_configuration: ActiveConfiguration | None = None
+        self._application_configuration: object | None = None
 
-    def bind(self, configuration: ActiveConfiguration) -> None:
-        """Bind the supplied active configuration."""
+    def bind(
+        self,
+        configuration: ActiveConfiguration,
+        application_configuration: object | None = None,
+    ) -> None:
+        """Bind the supplied active configuration and optional application projection."""
         self._active_configuration = configuration
+        self._application_configuration = application_configuration
 
     def get(self) -> ActiveConfiguration:
         """Return the currently bound active configuration.
@@ -37,4 +43,7 @@ class RuntimeConfigurationBinding:
             RuntimeConfigurationBindingError:
                 If no configuration is currently bound.
         """
-        return RuntimeConfigurationContext(configuration=self.get())
+        return RuntimeConfigurationContext(
+            configuration=self.get(),
+            application_configuration=self._application_configuration,
+        )

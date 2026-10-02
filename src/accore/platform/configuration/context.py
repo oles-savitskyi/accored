@@ -14,6 +14,7 @@ class RuntimeConfigurationContext:
     """Immutable runtime configuration snapshot."""
 
     configuration: ActiveConfiguration
+    application_configuration: object | None = None
 
     @property
     def identity(self) -> ConfigurationIdentity:

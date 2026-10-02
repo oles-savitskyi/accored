@@ -114,3 +114,25 @@ def test_context_is_immutable() -> None:
 
     with pytest.raises((AttributeError, TypeError)):
         context.configuration = make_configuration(version=2)  # type: ignore[misc]
+
+
+def test_context_captures_application_configuration_projection() -> None:
+    binding = RuntimeConfigurationBinding()
+    configuration = make_configuration()
+
+    binding.bind(configuration, application_configuration="standard-runtime")
+
+    context = binding.acquire()
+
+    assert context.application_configuration == "standard-runtime"
+
+
+def test_context_application_configuration_projection_is_immutable() -> None:
+    binding = RuntimeConfigurationBinding()
+    configuration = make_configuration()
+
+    binding.bind(configuration, application_configuration="standard-runtime")
+    context = binding.acquire()
+
+    with pytest.raises((AttributeError, TypeError)):
+        context.application_configuration = "changed"  # type: ignore[misc]
