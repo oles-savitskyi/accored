@@ -34,9 +34,12 @@ from accore.platform.registers import (
     RegisterOperationDomainRegistry,
     TotalsEngine,
     TotalsMaintenanceCoordinator,
+    TotalsReader,
 )
+from accore.platform.reporting import DefaultReportDataSourceRegistry, ReportDataSourceRegistry
 from accore.platform.runtime.resolution import RuntimeResolver
 from accore.platform.valuation import (
+    CostTotalsReader,
     DefaultCostTotalsEngine,
     DefaultValuationCoordinator,
     DefaultValuationPlanValidator,
@@ -47,6 +50,7 @@ from accore.platform.valuation import (
 )
 from standard.definitions.catalogs import standard_catalog_definitions
 from standard.registers.inventory import inventory_register_configuration
+from standard.reporting import InventoryBalanceReportSource
 from standard.valuation import (
     InventoryValuationInputProvider,
     InventoryValuationKeyMapper,
@@ -143,6 +147,24 @@ class StandardConfigurationBootstrap:
             movement_query=DefaultMovementQueryService(persistence),
             balance_query=DefaultBalanceQueryService(totals_engine),
         )
+
+    def compose_inventory_balance_report_source(
+        self,
+        totals: TotalsReader,
+        cost_totals: CostTotalsReader,
+    ) -> InventoryBalanceReportSource:
+        """Compose the Standard Inventory Balance Reporting source."""
+        return InventoryBalanceReportSource(totals, cost_totals)
+
+    def compose_inventory_reporting(
+        self,
+        totals: TotalsReader,
+        cost_totals: CostTotalsReader,
+    ) -> ReportDataSourceRegistry:
+        """Compose the Standard Inventory Reporting source registry."""
+        registry = DefaultReportDataSourceRegistry()
+        registry.register(self.compose_inventory_balance_report_source(totals, cost_totals))
+        return registry
 
     def compose_inventory_posting_platform(
         self,

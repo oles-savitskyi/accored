@@ -16,6 +16,10 @@ class CostTotalsReader(Protocol):
         """Return the current cost balance for one valuation key."""
         ...
 
+    def enumerate(self) -> tuple[CostBalance, ...]:
+        """Return all currently materialized valuation balances."""
+        ...
+
 
 class CostTotalsEngine(CostTotalsReader, Protocol):
     """Semantic Cost Totals Engine boundary."""
@@ -49,6 +53,9 @@ class DefaultCostTotalsEngine:
                 calculated_at=datetime.now(UTC),
             ),
         )
+
+    def enumerate(self) -> tuple[CostBalance, ...]:
+        return tuple(self._balances.values())
 
     def apply(self, movement: CostMovement) -> CostBalance:
         current = self.get(movement.valuation_key)

@@ -157,6 +157,12 @@ class TotalsReader(Protocol):
     def get(self, register_identity: Identifier, key: TotalsKey) -> TotalValue:
         """Return the current total for one Register aggregation key."""
 
+    def enumerate(
+        self,
+        register_identity: Identifier,
+    ) -> tuple[tuple[TotalsKey, TotalValue], ...]:
+        """Return all currently materialized non-zero totals for one Register."""
+
 
 class TotalsEngine(TotalsReader, Protocol):
     """Semantic Totals Engine boundary."""
@@ -185,6 +191,13 @@ class DefaultTotalsEngine:
     def get(self, register_identity: Identifier, key: TotalsKey) -> TotalValue:
         self._definition(register_identity)
         return self._totals[register_identity].get(key, Decimal(0))
+
+    def enumerate(
+        self,
+        register_identity: Identifier,
+    ) -> tuple[tuple[TotalsKey, TotalValue], ...]:
+        self._definition(register_identity)
+        return tuple(self._totals[register_identity].items())
 
     def apply(self, movement: Movement) -> TotalValue:
         definition = self._definition(movement.register_identity)
