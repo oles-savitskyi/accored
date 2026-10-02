@@ -914,7 +914,8 @@ Tests must cover:
 
 # 29. Architecture Boundary Tests
 
-Tests should ensure that Phase 10 Processing does not introduce:
+Architecture boundary tests are implemented as part of Slice 8. They verify
+that Phase 10 Processing does not introduce:
 
 * direct persistence access;
 * Register algorithm implementation;
@@ -1219,11 +1220,32 @@ mypy src
 
 All checks must pass before documentation reconciliation.
 
+### Slice 8 — Architecture Boundary Tests
+
+Add architecture-focused tests that verify the approved Phase 10 boundaries,
+including:
+
+* no direct persistence, storage, Register, Valuation, Posting, runtime, or
+  Standard dependencies in generic Platform Processing;
+* no registry, pipeline, workflow, scheduler, command bus, service container,
+  or transaction manager abstraction in the public Platform Processing surface;
+* no direct persistence, storage, or runtime dependencies in the Standard
+  Inventory rebuild Processing;
+* explicit semantic constructor dependencies for Register Maintenance and
+  Valuation Rebuilder.
+
+The implemented tests use source-level architecture inspection so that these
+boundary checks do not depend on unrelated runtime imports.
+
 ---
 
 # 39. Final API Decision
 
 This document supersedes the previous Phase 10 Concrete API Design.
+
+The approved API was implemented through Slice 8 without an architectural or
+API contract change. The Slice 8 additions are tests only and enforce the
+boundaries already defined by this document.
 
 The approved API consists of:
 
