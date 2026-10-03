@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from .authorization import AuthorizationRequest
 
 
 class AuthorizationConstraint(Protocol):
@@ -9,4 +12,4 @@ class AuthorizationConstraint(Protocol):
     @property
     def code(self) -> str: ...
 
-    def evaluate(self, request: object) -> bool: ...
+    def evaluate(self, request: AuthorizationRequest) -> bool: ...

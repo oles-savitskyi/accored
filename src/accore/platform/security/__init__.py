@@ -9,6 +9,17 @@ from .authentication import (
     SessionStore,
     UserRepository,
 )
+from .authorization import (
+    AuthorizationDecision,
+    AuthorizationDenyReason,
+    AuthorizationOutcome,
+    AuthorizationRequest,
+    AuthorizationResource,
+    AuthorizationService,
+    DefaultAuthorizationService,
+    SecurityAuthorizationState,
+)
+from .constraint import AuthorizationConstraint
 from .context import SecurityContext
 from .credentials import PasswordCredentials
 from .errors import (
@@ -34,8 +45,16 @@ __all__ = [
     "AuthenticationFailedError",
     "AuthenticationProvider",
     "AuthenticationResult",
+    "AuthorizationConstraint",
+    "AuthorizationDecision",
     "AuthorizationDeniedError",
+    "AuthorizationDenyReason",
+    "AuthorizationOutcome",
+    "AuthorizationRequest",
+    "AuthorizationResource",
+    "AuthorizationService",
     "CredentialRepository",
+    "DefaultAuthorizationService",
     "DefaultSecurityContextFactory",
     "PasswordCredentials",
     "PasswordVerifier",
@@ -44,6 +63,7 @@ __all__ = [
     "PrincipalType",
     "Role",
     "RoleRepository",
+    "SecurityAuthorizationState",
     "SecurityClaim",
     "SecurityConfigurationError",
     "SecurityContext",
