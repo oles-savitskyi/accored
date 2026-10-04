@@ -25,6 +25,7 @@ from accore.platform.processing import (
     ProcessingProgressObserver,
     ProcessingResult,
 )
+from accore.platform.security import SecurityContext
 
 PROCESSING_ID = ProcessingIdentity("inventory.rebuild")
 EXECUTION_ID = ProcessingExecutionIdentity(UUID("12345678-1234-5678-1234-567812345678"))
@@ -64,7 +65,9 @@ def test_processing_identity_and_definition_are_immutable() -> None:
 def test_command_preserves_configuration_parameters_and_optional_execution_identity() -> None:
     configuration = make_runtime_configuration()
     parameters = object()
-    command = ProcessingCommand(PROCESSING_ID, parameters, configuration, EXECUTION_ID)
+    command = ProcessingCommand(
+        PROCESSING_ID, parameters, configuration, SecurityContext(None, None), EXECUTION_ID
+    )
 
     assert command.processing_identity is PROCESSING_ID
     assert command.parameters is parameters
@@ -77,6 +80,7 @@ def test_command_allows_runtime_to_generate_execution_identity() -> None:
         PROCESSING_ID,
         parameters=(),
         runtime_configuration=make_runtime_configuration(),
+        security_context=SecurityContext(None, None),
     )
 
     assert command.execution_identity is None
@@ -88,6 +92,7 @@ def test_processing_context_is_typed_and_immutable() -> None:
     context = ProcessingContext(
         execution_identity=EXECUTION_ID,
         runtime_configuration=configuration,
+        security_context=SecurityContext(None, None),
         parameters=parameters,
         progress_observer=_TestProgressObserver(),
     )
@@ -160,6 +165,7 @@ def test_processing_protocol_accepts_concrete_implementation() -> None:
         EXECUTION_ID,
         make_runtime_configuration(),
         ("rebuild",),
+        ("parameter",),
         _TestProgressObserver(),
     )
     result = processing.execute(context)

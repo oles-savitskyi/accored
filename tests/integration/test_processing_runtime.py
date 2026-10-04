@@ -12,6 +12,7 @@ from accore.platform.processing import (
     ProcessingProgress,
 )
 from accore.platform.registers import MaintenanceOutcome, MaintenanceResult
+from accore.platform.security import AuthorizationService, SecurityContext
 from accore.platform.valuation import ValuationRebuildOutcome, ValuationRebuildResult
 from standard.bootstrap import StandardConfigurationBootstrap
 from standard.processings import InventoryDerivedStateRebuildParameters
@@ -19,6 +20,15 @@ from standard.registers.inventory import INVENTORY_REGISTER_ID
 
 _PROCESSING_IDENTITY = ProcessingIdentity("inventory.rebuild")
 _EXECUTION_IDENTITY = ProcessingExecutionIdentity(UUID("12345678-1234-5678-1234-567812345678"))
+
+
+class _AllowingAuthorizationService:
+    def require(self, request: object) -> None:
+        del request
+
+
+AUTHORIZATION_SERVICE: AuthorizationService = _AllowingAuthorizationService()
+SECURITY_CONTEXT = SecurityContext(principal=None, session=None)
 
 
 class _ProgressObserver:
@@ -50,7 +60,7 @@ def test_standard_processing_executes_through_platform_runtime() -> None:
         register_maintenance=register_maintenance,
         valuation_rebuilder=valuation_rebuilder,
     )
-    runtime = DefaultProcessingRuntime({_PROCESSING_IDENTITY: processing})
+    runtime = DefaultProcessingRuntime({_PROCESSING_IDENTITY: processing}, AUTHORIZATION_SERVICE)
     observer = _ProgressObserver()
 
     result = runtime.execute(
@@ -58,6 +68,7 @@ def test_standard_processing_executes_through_platform_runtime() -> None:
             processing_identity=_PROCESSING_IDENTITY,
             parameters=InventoryDerivedStateRebuildParameters(),
             runtime_configuration=_make_runtime_configuration(),
+            security_context=SECURITY_CONTEXT,
             execution_identity=_EXECUTION_IDENTITY,
         ),
         progress_observer=observer,
@@ -89,7 +100,7 @@ def test_standard_processing_runtime_uses_authoritative_standard_configuration()
         register_maintenance=register_maintenance,
         valuation_rebuilder=valuation_rebuilder,
     )
-    runtime = DefaultProcessingRuntime({_PROCESSING_IDENTITY: processing})
+    runtime = DefaultProcessingRuntime({_PROCESSING_IDENTITY: processing}, AUTHORIZATION_SERVICE)
     runtime_configuration = _make_runtime_configuration()
 
     runtime.execute(
@@ -97,6 +108,7 @@ def test_standard_processing_runtime_uses_authoritative_standard_configuration()
             processing_identity=_PROCESSING_IDENTITY,
             parameters=InventoryDerivedStateRebuildParameters(),
             runtime_configuration=runtime_configuration,
+            security_context=SECURITY_CONTEXT,
         )
     )
 

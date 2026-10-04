@@ -4,6 +4,13 @@ from collections.abc import Mapping
 from typing import Protocol, TypeVar
 from uuid import uuid4
 
+from accore.platform.security import (
+    AuthorizationRequest,
+    AuthorizationService,
+    SecurityObjectIdentity,
+    SecurityOperation,
+)
+
 from .command import ProcessingCommand, ProcessingExecutionIdentity
 from .context import ProcessingContext
 from .definition import ProcessingDefinition, ProcessingIdentity
@@ -59,15 +66,29 @@ class DefaultProcessingRuntime:
     """Default in-memory runtime resolving Processing implementations by identity."""
 
     def __init__(
-        self, processings: Mapping[ProcessingIdentity, Processing[object, object]]
+        self,
+        processings: Mapping[ProcessingIdentity, Processing[object, object]],
+        authorization_service: AuthorizationService,
     ) -> None:
         self._processings = processings
+        self._authorization_service = authorization_service
 
     def execute(
         self,
         command: ProcessingCommand,
         progress_observer: ProcessingProgressObserver | None = None,
     ) -> ProcessingResult[object]:
+        self._authorization_service.require(
+            AuthorizationRequest(
+                context=command.security_context,
+                target=SecurityObjectIdentity(
+                    object_type="processing",
+                    object_code=command.processing_identity.value,
+                ),
+                operation=SecurityOperation.EXECUTE,
+            )
+        )
+
         processing = self._processings.get(command.processing_identity)
         if processing is None:
             raise ProcessingNotFoundError(command.processing_identity)
@@ -84,6 +105,7 @@ class DefaultProcessingRuntime:
         context = ProcessingContext(
             execution_identity=execution_identity,
             runtime_configuration=command.runtime_configuration,
+            security_context=command.security_context,
             parameters=command.parameters,
             progress_observer=observer,
         )

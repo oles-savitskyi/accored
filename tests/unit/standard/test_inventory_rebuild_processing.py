@@ -23,6 +23,7 @@ from accore.platform.registers import (
     TotalsLifecycleState,
     TotalsMaintenanceState,
 )
+from accore.platform.security import SecurityContext
 from accore.platform.valuation import (
     ValuationKey,
     ValuationRebuildOutcome,
@@ -53,6 +54,7 @@ def make_context(
             ),
             application_configuration=application_configuration,
         ),
+        security_context=SecurityContext(None, None),
         parameters=InventoryDerivedStateRebuildParameters(),
         progress_observer=lambda progress: None,
     )

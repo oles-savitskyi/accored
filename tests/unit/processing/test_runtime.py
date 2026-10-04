@@ -22,6 +22,7 @@ from accore.platform.processing import (
     ProcessingProgress,
     ProcessingResult,
 )
+from accore.platform.security import AuthorizationService, SecurityContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +84,15 @@ class RecordingObserver:
         self.progress.append(progress)
 
 
+class AllowingAuthorizationService:
+    def require(self, request: object) -> None:
+        del request
+
+
+AUTHORIZATION_SERVICE: AuthorizationService = AllowingAuthorizationService()
+SECURITY_CONTEXT = SecurityContext(principal=None, session=None)
+
+
 def _runtime_configuration() -> RuntimeConfigurationContext:
     return RuntimeConfigurationContext(
         configuration=ActiveConfiguration(
@@ -99,6 +109,7 @@ def _command(identity: ProcessingIdentity) -> ProcessingCommand:
         processing_identity=identity,
         parameters=Parameters("input"),
         runtime_configuration=_runtime_configuration(),
+        security_context=SECURITY_CONTEXT,
     )
 
 
@@ -109,11 +120,12 @@ def test_execute_resolves_processing_and_preserves_command_data() -> None:
     execution_identity = ProcessingExecutionIdentity(uuid4())
     parameters = Parameters("input")
     configuration = _runtime_configuration()
-    runtime = DefaultProcessingRuntime({identity: processing})
+    runtime = DefaultProcessingRuntime({identity: processing}, AUTHORIZATION_SERVICE)
     command = ProcessingCommand(
         processing_identity=identity,
         parameters=parameters,
         runtime_configuration=configuration,
+        security_context=SECURITY_CONTEXT,
         execution_identity=execution_identity,
     )
 
@@ -124,6 +136,7 @@ def test_execute_resolves_processing_and_preserves_command_data() -> None:
     assert processing.received_context is not None
     assert processing.received_context.execution_identity == execution_identity
     assert processing.received_context.runtime_configuration is configuration
+    assert processing.received_context.security_context is SECURITY_CONTEXT
     assert processing.received_context.parameters is parameters
 
 
@@ -131,7 +144,7 @@ def test_execute_generates_execution_identity_when_command_does_not_provide_one(
     identity = ProcessingIdentity("processing.example")
     definition = ProcessingDefinition(identity, "Example", "Example processing")
     processing = StubProcessing(definition)
-    runtime = DefaultProcessingRuntime({identity: processing})
+    runtime = DefaultProcessingRuntime({identity: processing}, AUTHORIZATION_SERVICE)
     command = _command(identity)
 
     result = runtime.execute(command)
@@ -143,7 +156,7 @@ def test_execute_generates_execution_identity_when_command_does_not_provide_one(
 
 def test_execute_raises_when_processing_is_not_registered() -> None:
     identity = ProcessingIdentity("processing.missing")
-    runtime = DefaultProcessingRuntime({})
+    runtime = DefaultProcessingRuntime({}, AUTHORIZATION_SERVICE)
 
     with pytest.raises(ProcessingNotFoundError):
         runtime.execute(_command(identity))
@@ -154,7 +167,7 @@ def test_execute_raises_when_resolved_definition_identity_does_not_match() -> No
     actual_identity = ProcessingIdentity("processing.actual")
     definition = ProcessingDefinition(actual_identity, "Actual", "Actual processing")
     processing = StubProcessing(definition)
-    runtime = DefaultProcessingRuntime({requested_identity: processing})
+    runtime = DefaultProcessingRuntime({requested_identity: processing}, AUTHORIZATION_SERVICE)
 
     with pytest.raises(ProcessingDefinitionMismatchError):
         runtime.execute(_command(requested_identity))
@@ -164,7 +177,7 @@ def test_execute_propagates_processing_exception() -> None:
     identity = ProcessingIdentity("processing.example")
     definition = ProcessingDefinition(identity, "Example", "Example processing")
     processing = FailingProcessing(definition)
-    runtime = DefaultProcessingRuntime({identity: processing})
+    runtime = DefaultProcessingRuntime({identity: processing}, AUTHORIZATION_SERVICE)
 
     with pytest.raises(RuntimeError, match="processing failed"):
         runtime.execute(_command(identity))
@@ -175,7 +188,7 @@ def test_execute_forwards_progress_to_supplied_observer() -> None:
     definition = ProcessingDefinition(identity, "Example", "Example processing")
     processing = ReportingProcessing(definition)
     observer = RecordingObserver()
-    runtime = DefaultProcessingRuntime({identity: processing})
+    runtime = DefaultProcessingRuntime({identity: processing}, AUTHORIZATION_SERVICE)
 
     runtime.execute(_command(identity), progress_observer=observer)
 
@@ -189,7 +202,7 @@ def test_execute_without_observer_provides_usable_noop_observer() -> None:
     identity = ProcessingIdentity("processing.example")
     definition = ProcessingDefinition(identity, "Example", "Example processing")
     processing = ReportingProcessing(definition)
-    runtime = DefaultProcessingRuntime({identity: processing})
+    runtime = DefaultProcessingRuntime({identity: processing}, AUTHORIZATION_SERVICE)
 
     result = runtime.execute(_command(identity))
 
@@ -201,7 +214,7 @@ def test_execute_isolates_progress_observer_failure() -> None:
     identity = ProcessingIdentity("processing.example")
     definition = ProcessingDefinition(identity, "Example", "Example processing")
     processing = ReportingProcessing(definition)
-    runtime = DefaultProcessingRuntime({identity: processing})
+    runtime = DefaultProcessingRuntime({identity: processing}, AUTHORIZATION_SERVICE)
 
     class FailingObserver:
         def report(self, progress: ProcessingProgress) -> None:

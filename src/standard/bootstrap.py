@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from accore.platform.configuration import (
@@ -19,7 +20,12 @@ from accore.platform.posting import (
     RegisterPostingResultCoordinator,
     ValuationPostingCoordinator,
 )
-from accore.platform.processing import Processing
+from accore.platform.processing import (
+    DefaultProcessingRuntime,
+    Processing,
+    ProcessingIdentity,
+    ProcessingRuntime,
+)
 from accore.platform.registers import (
     BalanceQueryService,
     DefaultBalanceQueryService,
@@ -39,6 +45,7 @@ from accore.platform.registers import (
 )
 from accore.platform.reporting import DefaultReportDataSourceRegistry, ReportDataSourceRegistry
 from accore.platform.runtime.resolution import RuntimeResolver
+from accore.platform.security import AuthorizationService
 from accore.platform.valuation import (
     CostTotalsReader,
     DefaultCostTotalsEngine,
@@ -230,6 +237,14 @@ class StandardConfigurationBootstrap:
             valuation_rebuilder=valuation_rebuilder,
             posting_result_coordinator=posting_result_coordinator,
         )
+
+    def compose_processing_runtime(
+        self,
+        processings: Mapping[ProcessingIdentity, Processing[object, object]],
+        authorization_service: AuthorizationService,
+    ) -> ProcessingRuntime:
+        """Compose the platform Processing runtime with Standard security authorization."""
+        return DefaultProcessingRuntime(processings, authorization_service)
 
     def compose_inventory_rebuild_processing(
         self,

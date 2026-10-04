@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from accore.platform.configuration.context import RuntimeConfigurationContext
+from accore.platform.security import SecurityContext
 
 from .definition import ProcessingIdentity
 
@@ -22,4 +23,5 @@ class ProcessingCommand:
     processing_identity: ProcessingIdentity
     parameters: object
     runtime_configuration: RuntimeConfigurationContext
+    security_context: SecurityContext
     execution_identity: ProcessingExecutionIdentity | None = None
