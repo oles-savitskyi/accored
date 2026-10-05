@@ -27,7 +27,6 @@ from standard.security import (
     InMemoryRoleRepository,
     InMemoryUserRepository,
     StandardSecurityAuthorizationState,
-    StandardSecurityComposition,
 )
 
 TARGET = SecurityObjectIdentity("Processing", "inventory.rebuild")
@@ -396,6 +395,6 @@ def test_standard_authorization_state_adapts_user_and_roles() -> None:
     users = InMemoryUserRepository((user,))
     roles = InMemoryRoleRepository((role,))
     state = StandardSecurityAuthorizationState(users=users, roles=roles)
-    composition = StandardSecurityComposition(DefaultAuthorizationService(state))
+    service = DefaultAuthorizationService(state)
 
-    assert composition.authorization.authorize(_request(user)).outcome is AuthorizationOutcome.ALLOW
+    assert service.authorize(_request(user)).outcome is AuthorizationOutcome.ALLOW

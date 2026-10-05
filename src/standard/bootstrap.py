@@ -66,6 +66,7 @@ from standard.processings import (
 )
 from standard.registers.inventory import inventory_register_configuration
 from standard.reporting import InventoryBalanceReportSource
+from standard.security import StandardSecurityComposition, compose_standard_security
 from standard.valuation import (
     InventoryValuationInputProvider,
     InventoryValuationKeyMapper,
@@ -237,6 +238,14 @@ class StandardConfigurationBootstrap:
             valuation_rebuilder=valuation_rebuilder,
             posting_result_coordinator=posting_result_coordinator,
         )
+
+    def compose_security(
+        self,
+        *,
+        initial_passwords: Mapping[str, str],
+    ) -> StandardSecurityComposition:
+        """Compose the complete Standard MVP security boundary."""
+        return compose_standard_security(initial_passwords=initial_passwords)
 
     def compose_processing_runtime(
         self,

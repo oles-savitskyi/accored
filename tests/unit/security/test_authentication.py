@@ -19,6 +19,7 @@ from standard.security import (
     InMemorySessionStore,
     InMemoryUserRepository,
     LocalAuthenticationProvider,
+    StandardCredential,
     StandardPasswordHasher,
 )
 
@@ -38,7 +39,9 @@ def _provider(user: User, password: str = "secret") -> LocalAuthenticationProvid
     hasher = StandardPasswordHasher()
     return LocalAuthenticationProvider(
         users=InMemoryUserRepository((user,)),
-        credentials=InMemoryCredentialRepository({user.identity: hasher.hash(password)}),
+        credentials=InMemoryCredentialRepository(
+            (StandardCredential(user.identity, hasher.hash(password)),)
+        ),
         sessions=InMemorySessionStore(lifetime=timedelta(hours=1)),
         password_hasher=hasher,
     )

@@ -3,6 +3,8 @@ from __future__ import annotations
 from unittest.mock import Mock
 from uuid import UUID
 
+import pytest
+
 from accore.platform.processing import (
     DefaultProcessingRuntime,
     ProcessingCommand,
@@ -12,7 +14,12 @@ from accore.platform.processing import (
     ProcessingProgress,
 )
 from accore.platform.registers import MaintenanceOutcome, MaintenanceResult
-from accore.platform.security import AuthorizationService, SecurityContext
+from accore.platform.security import (
+    AuthorizationDeniedError,
+    AuthorizationService,
+    PasswordCredentials,
+    SecurityContext,
+)
 from accore.platform.valuation import ValuationRebuildOutcome, ValuationRebuildResult
 from standard.bootstrap import StandardConfigurationBootstrap
 from standard.processings import InventoryDerivedStateRebuildParameters
@@ -115,3 +122,68 @@ def test_standard_processing_runtime_uses_authoritative_standard_configuration()
     register_maintenance.rebuild.assert_called_once_with(
         runtime_configuration.application_configuration.inventory_register_identity
     )
+
+
+def test_standard_security_composition_authorizes_real_processing_and_denies_auditor() -> None:
+    bootstrap = StandardConfigurationBootstrap()
+    register_maintenance = Mock()
+    valuation_rebuilder = Mock()
+
+    register_result = Mock(spec=MaintenanceResult)
+    register_result.outcome = MaintenanceOutcome.SUCCESS
+    valuation_result = Mock(spec=ValuationRebuildResult)
+    valuation_result.outcome = ValuationRebuildOutcome.SUCCESS
+    register_maintenance.rebuild.return_value = register_result
+    valuation_rebuilder.rebuild.return_value = valuation_result
+
+    processing = bootstrap.compose_inventory_rebuild_processing(
+        register_maintenance=register_maintenance,
+        valuation_rebuilder=valuation_rebuilder,
+    )
+    security = bootstrap.compose_security(
+        initial_passwords={
+            "administrator": "administrator-test-password",
+            "operator": "operator-test-password",
+            "auditor": "auditor-test-password",
+        }
+    )
+    runtime = bootstrap.compose_processing_runtime(
+        {_PROCESSING_IDENTITY: processing}, security.authorization
+    )
+    runtime_configuration = _make_runtime_configuration()
+
+    operator_result = security.authentication.authenticate(
+        PasswordCredentials(login="operator", password="operator-test-password")
+    )
+    operator_context = security.context_factory.from_authentication(operator_result)
+    runtime.execute(
+        ProcessingCommand(
+            processing_identity=_PROCESSING_IDENTITY,
+            parameters=InventoryDerivedStateRebuildParameters(),
+            runtime_configuration=runtime_configuration,
+            security_context=operator_context,
+        )
+    )
+    register_maintenance.rebuild.assert_called_once_with(INVENTORY_REGISTER_ID)
+    valuation_rebuilder.rebuild.assert_called_once_with()
+
+    register_maintenance.reset_mock()
+    valuation_rebuilder.reset_mock()
+
+    auditor_result = security.authentication.authenticate(
+        PasswordCredentials(login="auditor", password="auditor-test-password")
+    )
+    auditor_context = security.context_factory.from_authentication(auditor_result)
+
+    with pytest.raises(AuthorizationDeniedError):
+        runtime.execute(
+            ProcessingCommand(
+                processing_identity=_PROCESSING_IDENTITY,
+                parameters=InventoryDerivedStateRebuildParameters(),
+                runtime_configuration=runtime_configuration,
+                security_context=auditor_context,
+            )
+        )
+
+    register_maintenance.rebuild.assert_not_called()
+    valuation_rebuilder.rebuild.assert_not_called()

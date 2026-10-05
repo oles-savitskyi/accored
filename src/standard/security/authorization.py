@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 
 from accore.platform.foundation.identity import Identifier
 from accore.platform.security import (
-    AuthorizationService,
     Principal,
     Role,
     SecurityAuthorizationState,
@@ -49,13 +48,7 @@ class StandardSecurityAuthorizationState(SecurityAuthorizationState):
         return self.roles.get(identity)
 
 
-@dataclass(frozen=True, slots=True)
-class StandardSecurityComposition:
-    authorization: AuthorizationService
-
-
 __all__ = [
     "InMemoryRoleRepository",
     "StandardSecurityAuthorizationState",
-    "StandardSecurityComposition",
 ]

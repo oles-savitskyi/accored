@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from accore.platform.foundation.identity import Identifier
-from accore.platform.security.authentication import PasswordVerifier
+from accore.platform.security.authentication import CredentialRepository, PasswordVerifier
 from accore.platform.security.errors import SecurityConfigurationError
 from accore.platform.security.principal import Principal
 from accore.platform.security.session import Session, SessionState
@@ -40,15 +40,36 @@ class InMemoryUserRepository:
             raise SecurityConfigurationError(f"Unknown user identity: {identity}") from exc
 
 
-@dataclass(slots=True)
-class InMemoryCredentialRepository:
-    """In-memory Standard credential repository."""
+@dataclass(frozen=True, slots=True)
+class StandardCredential:
+    """Immutable Standard credential state for one user."""
 
-    credentials: dict[Identifier, PasswordVerifier]
+    user_identity: Identifier
+    verifier: PasswordVerifier
+
+
+@dataclass(frozen=True, slots=True)
+class InMemoryCredentialRepository(CredentialRepository):
+    """Read-only in-memory Standard credential repository."""
+
+    credentials: tuple[StandardCredential, ...]
+    _by_identity: dict[Identifier, PasswordVerifier] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        credentials = tuple(self.credentials)
+        object.__setattr__(self, "credentials", credentials)
+        by_identity: dict[Identifier, PasswordVerifier] = {}
+        for credential in self.credentials:
+            if credential.user_identity in by_identity:
+                raise SecurityConfigurationError(
+                    f"Duplicate credential identity: {credential.user_identity}"
+                )
+            by_identity[credential.user_identity] = credential.verifier
+        object.__setattr__(self, "_by_identity", by_identity)
 
     def get_password_verifier(self, user_identity: Identifier) -> PasswordVerifier:
         try:
-            return self.credentials[user_identity]
+            return self._by_identity[user_identity]
         except KeyError as exc:
             raise SecurityConfigurationError(
                 f"Missing credentials for user identity: {user_identity}"
