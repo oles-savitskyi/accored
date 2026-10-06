@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -8,10 +9,13 @@ import pytest
 from accore.platform.processing import (
     DefaultProcessingRuntime,
     ProcessingCommand,
+    ProcessingContext,
+    ProcessingDefinition,
     ProcessingExecutionIdentity,
     ProcessingIdentity,
     ProcessingOutcome,
     ProcessingProgress,
+    ProcessingResult,
 )
 from accore.platform.registers import MaintenanceOutcome, MaintenanceResult
 from accore.platform.security import (
@@ -38,6 +42,35 @@ AUTHORIZATION_SERVICE: AuthorizationService = _AllowingAuthorizationService()
 SECURITY_CONTEXT = SecurityContext(principal=None, session=None)
 
 
+class _ResolutionProbe(dict[ProcessingIdentity, object]):
+    def __init__(self, values: Mapping[ProcessingIdentity, object]) -> None:
+        super().__init__(values)
+        self.lookups: list[ProcessingIdentity] = []
+
+    def get(self, key: ProcessingIdentity, default: object = None) -> object:
+        self.lookups.append(key)
+        return super().get(key, default)
+
+
+class _CapturingProcessing:
+    def __init__(self, identity: ProcessingIdentity) -> None:
+        self._definition = ProcessingDefinition(identity, "Capture", "Capture security context")
+        self.context: ProcessingContext[object] | None = None
+
+    @property
+    def definition(self) -> ProcessingDefinition:
+        return self._definition
+
+    def execute(self, context: ProcessingContext[object]) -> ProcessingResult[object]:
+        self.context = context
+        return ProcessingResult(
+            execution_identity=context.execution_identity,
+            processing_identity=self._definition.identity,
+            outcome=ProcessingOutcome.SUCCESS,
+            details=None,
+        )
+
+
 class _ProgressObserver:
     def __init__(self) -> None:
         self.notifications: list[ProcessingProgress] = []
@@ -49,6 +82,64 @@ class _ProgressObserver:
 def _make_runtime_configuration() -> object:
     configuration, _ = StandardConfigurationBootstrap().initialize()
     return configuration
+
+
+def test_processing_runtime_propagates_the_same_security_context_instance() -> None:
+    bootstrap = StandardConfigurationBootstrap()
+    security = bootstrap.compose_security(
+        initial_passwords={
+            "administrator": "administrator-test-password",
+            "operator": "operator-test-password",
+            "auditor": "auditor-test-password",
+        }
+    )
+    operator_result = security.authentication.authenticate(
+        PasswordCredentials(login="operator", password="operator-test-password")
+    )
+    security_context = security.context_factory.from_authentication(operator_result)
+    processing = _CapturingProcessing(_PROCESSING_IDENTITY)
+    runtime = DefaultProcessingRuntime({_PROCESSING_IDENTITY: processing}, security.authorization)
+
+    runtime.execute(
+        ProcessingCommand(
+            processing_identity=_PROCESSING_IDENTITY,
+            parameters=InventoryDerivedStateRebuildParameters(),
+            runtime_configuration=_make_runtime_configuration(),
+            security_context=security_context,
+        )
+    )
+
+    assert processing.context is not None
+    assert processing.context.security_context is security_context
+
+
+def test_denied_processing_is_rejected_before_processing_resolution() -> None:
+    bootstrap = StandardConfigurationBootstrap()
+    security = bootstrap.compose_security(
+        initial_passwords={
+            "administrator": "administrator-test-password",
+            "operator": "operator-test-password",
+            "auditor": "auditor-test-password",
+        }
+    )
+    auditor_result = security.authentication.authenticate(
+        PasswordCredentials(login="auditor", password="auditor-test-password")
+    )
+    auditor_context = security.context_factory.from_authentication(auditor_result)
+    processings = _ResolutionProbe({})
+    runtime = DefaultProcessingRuntime(processings, security.authorization)
+
+    with pytest.raises(AuthorizationDeniedError):
+        runtime.execute(
+            ProcessingCommand(
+                processing_identity=_PROCESSING_IDENTITY,
+                parameters=InventoryDerivedStateRebuildParameters(),
+                runtime_configuration=_make_runtime_configuration(),
+                security_context=auditor_context,
+            )
+        )
+
+    assert processings.lookups == []
 
 
 def test_standard_processing_executes_through_platform_runtime() -> None:

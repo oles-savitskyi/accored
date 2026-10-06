@@ -42,6 +42,24 @@ def test_operator_authentication_produces_user_context() -> None:
     assert context.session is result.session
 
 
+def test_administrator_receives_all_standard_permissions() -> None:
+    security = compose_standard_security(initial_passwords=_PASSWORDS)
+    result = security.authentication.authenticate(
+        PasswordCredentials(login="administrator", password=_PASSWORDS["administrator"])
+    )
+    context = security.context_factory.from_authentication(result)
+
+    for target, operation in (
+        (SecurityObjectIdentity("processing", "inventory.rebuild"), SecurityOperation.EXECUTE),
+        (SecurityObjectIdentity("report", "inventory.balance"), SecurityOperation.READ),
+        (SecurityObjectIdentity("system", "security"), SecurityOperation.ADMINISTER),
+    ):
+        decision = security.authorization.authorize(
+            AuthorizationRequest(context=context, target=target, operation=operation)
+        )
+        assert decision.reason is None
+
+
 def test_operator_is_allowed_to_execute_inventory_rebuild() -> None:
     security = compose_standard_security(initial_passwords=_PASSWORDS)
     result = security.authentication.authenticate(
@@ -77,6 +95,32 @@ def test_auditor_is_denied_inventory_rebuild() -> None:
     )
 
     assert decision.reason is AuthorizationDenyReason.MISSING_PERMISSION
+
+
+def test_independent_security_compositions_do_not_share_session_state() -> None:
+    first = compose_standard_security(initial_passwords=_PASSWORDS)
+    second = compose_standard_security(initial_passwords=_PASSWORDS)
+
+    first_result = first.authentication.authenticate(
+        PasswordCredentials(login="operator", password=_PASSWORDS["operator"])
+    )
+    second_result = second.authentication.authenticate(
+        PasswordCredentials(login="operator", password=_PASSWORDS["operator"])
+    )
+
+    assert first_result.session is not None
+    assert second_result.session is not None
+    assert first_result.principal.identity != second_result.principal.identity
+
+    first.authentication.sessions.invalidate(first_result.session.identity)
+
+    assert (
+        first.authentication.sessions.get(first_result.session.identity).state.value
+        == "invalidated"
+    )
+    assert (
+        second.authentication.sessions.get(second_result.session.identity).state.value == "active"
+    )
 
 
 def test_authentication_failure_does_not_accept_wrong_password() -> None:

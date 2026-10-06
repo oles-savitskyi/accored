@@ -47,6 +47,17 @@ def _provider(user: User, password: str = "secret") -> LocalAuthenticationProvid
     )
 
 
+def test_password_hasher_uses_a_fresh_salt_for_each_hash() -> None:
+    hasher = StandardPasswordHasher()
+
+    first = hasher.hash("secret")
+    second = hasher.hash("secret")
+
+    assert first.value != second.value
+    assert hasher.verify("secret", first)
+    assert hasher.verify("secret", second)
+
+
 def test_password_hasher_does_not_store_cleartext_and_verifies() -> None:
     hasher = StandardPasswordHasher()
     verifier = hasher.hash("secret")
