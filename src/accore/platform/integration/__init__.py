@@ -7,6 +7,7 @@ from .contract import (
     IntegrationContractKind,
 )
 from .errors import (
+    IntegrationAuthenticationError,
     IntegrationAuthorizationError,
     IntegrationConflictError,
     IntegrationContractNotFoundError,
@@ -15,16 +16,23 @@ from .errors import (
     IntegrationError,
     IntegrationErrorCategory,
     IntegrationExecutionError,
+    IntegrationInternalError,
     IntegrationMalformedRequestError,
     IntegrationRequestValidationError,
 )
+from .registry import BoundIntegrationOperation, InMemoryIntegrationOperationRegistry
 from .request import CommandRequest, QueryRequest
 from .response import CommandResponse, QueryResponse
+from .service import DefaultIntegrationService, IntegrationService
 
 __all__ = [
+    "BoundIntegrationOperation",
     "CommandRequest",
     "CommandResponse",
     "ContractVersion",
+    "DefaultIntegrationService",
+    "InMemoryIntegrationOperationRegistry",
+    "IntegrationAuthenticationError",
     "IntegrationAuthorizationError",
     "IntegrationConflictError",
     "IntegrationContract",
@@ -36,8 +44,10 @@ __all__ = [
     "IntegrationError",
     "IntegrationErrorCategory",
     "IntegrationExecutionError",
+    "IntegrationInternalError",
     "IntegrationMalformedRequestError",
     "IntegrationRequestValidationError",
+    "IntegrationService",
     "QueryRequest",
     "QueryResponse",
 ]

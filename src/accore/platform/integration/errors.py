@@ -62,6 +62,13 @@ class IntegrationMalformedRequestError(IntegrationRequestValidationError):
     """Raised when an incoming request cannot be interpreted as a valid request."""
 
 
+class IntegrationAuthenticationError(IntegrationError):
+    """External Integration representation of an authentication failure."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, category=IntegrationErrorCategory.AUTHENTICATION)
+
+
 class IntegrationAuthorizationError(IntegrationError):
     """External representation of a Phase 11 authorization denial."""
 
@@ -74,6 +81,13 @@ class IntegrationExecutionError(IntegrationError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message, category=IntegrationErrorCategory.EXECUTION)
+
+
+class IntegrationInternalError(IntegrationError):
+    """Sanitized representation of an unexpected internal failure."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, category=IntegrationErrorCategory.INTERNAL)
 
 
 class IntegrationConflictError(IntegrationError):
