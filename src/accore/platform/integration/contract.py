@@ -4,6 +4,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
+from accore.platform.security.object import SecurityObjectIdentity
+from accore.platform.security.operation import SecurityOperation
+
 
 @dataclass(frozen=True, slots=True)
 class ContractVersion:
@@ -17,6 +20,14 @@ class ContractVersion:
             raise ValueError("Contract major version must be non-negative.")
         if self.minor < 0:
             raise ValueError("Contract minor version must be non-negative.")
+
+
+@dataclass(frozen=True, slots=True)
+class IntegrationSecurityRequirement:
+    """Authorization semantics declared by an Integration capability."""
+
+    target: SecurityObjectIdentity
+    operation: SecurityOperation
 
 
 class IntegrationContractKind(StrEnum):

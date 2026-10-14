@@ -5,6 +5,7 @@ from .contract import (
     IntegrationContract,
     IntegrationContractIdentity,
     IntegrationContractKind,
+    IntegrationSecurityRequirement,
 )
 from .errors import (
     IntegrationAuthenticationError,
@@ -20,6 +21,14 @@ from .errors import (
     IntegrationMalformedRequestError,
     IntegrationRequestValidationError,
 )
+from .events import (
+    EventContract,
+    EventEnvelope,
+    EventPublisher,
+    EventSubscriber,
+    InMemoryEventDispatcher,
+    PostingEventBridge,
+)
 from .registry import BoundIntegrationOperation, InMemoryIntegrationOperationRegistry
 from .request import CommandRequest, QueryRequest
 from .response import CommandResponse, QueryResponse
@@ -31,6 +40,11 @@ __all__ = [
     "CommandResponse",
     "ContractVersion",
     "DefaultIntegrationService",
+    "EventContract",
+    "EventEnvelope",
+    "EventPublisher",
+    "EventSubscriber",
+    "InMemoryEventDispatcher",
     "InMemoryIntegrationOperationRegistry",
     "IntegrationAuthenticationError",
     "IntegrationAuthorizationError",
@@ -47,7 +61,9 @@ __all__ = [
     "IntegrationInternalError",
     "IntegrationMalformedRequestError",
     "IntegrationRequestValidationError",
+    "IntegrationSecurityRequirement",
     "IntegrationService",
+    "PostingEventBridge",
     "QueryRequest",
     "QueryResponse",
 ]
