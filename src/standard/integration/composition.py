@@ -21,10 +21,18 @@ from accore.platform.processing import ProcessingRuntime
 from accore.platform.reporting import ReportRuntime
 
 from .definitions import (
+    STANDARD_GOODS_RECEIPT_IMPORT_CONTRACT,
+    STANDARD_INVENTORY_BALANCE_EXPORT_CONTRACT,
     STANDARD_INVENTORY_BALANCE_QUERY_CONTRACT,
     STANDARD_INVENTORY_REBUILD_CONTRACT,
+    StandardGoodsReceiptImportExecutor,
 )
-from .operations import StandardInventoryBalanceQueryBinding, StandardInventoryRebuildBinding
+from .operations import (
+    StandardGoodsReceiptImportBinding,
+    StandardInventoryBalanceExportBinding,
+    StandardInventoryBalanceQueryBinding,
+    StandardInventoryRebuildBinding,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,11 +52,13 @@ def compose_standard_integration(
     runtime_configuration: RuntimeConfigurationContext,
     report_runtime: ReportRuntime,
     additional_operations: tuple[IntegrationOperation, ...] = (),
+    goods_receipt_import_executor: StandardGoodsReceiptImportExecutor | None = None,
 ) -> StandardIntegrationComposition:
     """Compose Standard operations over the existing platform Runtime boundaries.
 
-    Additional operations may be supplied by Standard modules (for example, a
-    concrete import/export capability). All operation kinds share one registry.
+    All operation kinds share one registry. Inventory Balance export is always
+    registered. Goods Receipt import is registered only when the host supplies
+    an executor that creates/persists the document and invokes the Posting API.
     """
     registry = InMemoryIntegrationOperationRegistry()
     registry.register(
@@ -66,6 +76,19 @@ def compose_standard_integration(
             binding=StandardInventoryBalanceQueryBinding(report_runtime),
         )
     )
+    registry.register(
+        BoundIntegrationOperation(
+            contract=STANDARD_INVENTORY_BALANCE_EXPORT_CONTRACT,
+            binding=StandardInventoryBalanceExportBinding(report_runtime),
+        )
+    )
+    if goods_receipt_import_executor is not None:
+        registry.register(
+            BoundIntegrationOperation(
+                contract=STANDARD_GOODS_RECEIPT_IMPORT_CONTRACT,
+                binding=StandardGoodsReceiptImportBinding(goods_receipt_import_executor),
+            )
+        )
     for operation in additional_operations:
         registry.register(operation)
 

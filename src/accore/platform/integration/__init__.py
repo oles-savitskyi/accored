@@ -29,6 +29,7 @@ from .events import (
     InMemoryEventDispatcher,
     PostingEventBridge,
 )
+from .http_adapter import JsonHttpIntegrationAdapter, PayloadDecoder, SecurityContextFactory
 from .import_export import (
     DefaultImportExportService,
     ExportContract,
@@ -88,8 +89,11 @@ __all__ = [
     "IntegrationSecurityRequirement",
     "IntegrationService",
     "JsonExportFormatAdapter",
+    "JsonHttpIntegrationAdapter",
     "JsonImportFormatAdapter",
+    "PayloadDecoder",
     "PostingEventBridge",
     "QueryRequest",
     "QueryResponse",
+    "SecurityContextFactory",
 ]

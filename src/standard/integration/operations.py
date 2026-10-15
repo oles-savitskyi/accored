@@ -3,6 +3,8 @@ from __future__ import annotations
 from accore.platform.configuration import RuntimeConfigurationContext
 from accore.platform.integration import (
     CommandRequest,
+    ExportRequest,
+    ImportRequest,
     IntegrationContractValidationError,
     QueryRequest,
 )
@@ -10,6 +12,11 @@ from accore.platform.processing import ProcessingCommand, ProcessingIdentity, Pr
 from accore.platform.reporting import ReportExecutionPlan, ReportRuntime
 from standard.processings import InventoryDerivedStateRebuildParameters
 from standard.reporting.inventory_balance import INVENTORY_BALANCE_REPORT_IDENTITY
+
+from .definitions import (
+    StandardGoodsReceiptImportExecutor,
+    StandardGoodsReceiptImportPayload,
+)
 
 
 class StandardInventoryRebuildBinding:
@@ -60,3 +67,45 @@ class StandardInventoryBalanceQueryBinding:
                 "Inventory Balance query requires the Standard Inventory Balance plan."
             )
         return self._runtime.execute(request.payload)
+
+
+class StandardInventoryBalanceExportBinding:
+    """Adapt Inventory Balance export requests to Reporting Runtime."""
+
+    def __init__(self, runtime: ReportRuntime) -> None:
+        self._runtime = runtime
+
+    def execute(self, request: object) -> object:
+        if not isinstance(request, ExportRequest):
+            raise IntegrationContractValidationError(
+                "Inventory Balance export requires an export request."
+            )
+        if not isinstance(request.payload, ReportExecutionPlan):
+            raise IntegrationContractValidationError(
+                "Inventory Balance export requires a ReportExecutionPlan."
+            )
+        if request.payload.compiled.definition.identity != INVENTORY_BALANCE_REPORT_IDENTITY:
+            raise IntegrationContractValidationError(
+                "Inventory Balance export requires the Standard Inventory Balance plan."
+            )
+        return self._runtime.execute(request.payload)
+
+
+class StandardGoodsReceiptImportBinding:
+    """Delegate Goods Receipt import to the host's persisted Posting boundary."""
+
+    def __init__(self, executor: StandardGoodsReceiptImportExecutor) -> None:
+        self._executor = executor
+
+    def execute(self, request: object) -> object:
+        if not isinstance(request, ImportRequest):
+            raise IntegrationContractValidationError(
+                "Goods Receipt import requires an import request."
+            )
+        if not isinstance(request.payload, StandardGoodsReceiptImportPayload):
+            raise IntegrationContractValidationError(
+                "Goods Receipt import payload has an unsupported type."
+            )
+        return self._executor.execute(
+            request.payload, request.security_context, request.request_identity
+        )
