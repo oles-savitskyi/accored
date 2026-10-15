@@ -2,6 +2,7 @@ from .authentication import LocalAuthenticationProvider, StandardPasswordHasher
 from .authorization import InMemoryRoleRepository, StandardSecurityAuthorizationState
 from .composition import StandardSecurityComposition, compose_standard_security
 from .definitions import (
+    GOODS_RECEIPT_DOCUMENT,
     PROCESSING_INVENTORY_REBUILD,
     REPORT_INVENTORY_BALANCE,
     STANDARD_ADMINISTRATOR_ROLE,
@@ -20,6 +21,7 @@ from .persistence import (
 )
 
 __all__ = [
+    "GOODS_RECEIPT_DOCUMENT",
     "PROCESSING_INVENTORY_REBUILD",
     "REPORT_INVENTORY_BALANCE",
     "STANDARD_ADMINISTRATOR_ROLE",

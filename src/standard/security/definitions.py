@@ -31,6 +31,10 @@ SYSTEM_SECURITY = SecurityObjectIdentity(
     object_type="system",
     object_code="security",
 )
+GOODS_RECEIPT_DOCUMENT = SecurityObjectIdentity(
+    object_type="document",
+    object_code="goods-receipt",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,18 +52,26 @@ def _build_roles() -> tuple[Role, ...]:
     processing_execute = _permission(PROCESSING_INVENTORY_REBUILD, SecurityOperation.EXECUTE)
     report_read = _permission(REPORT_INVENTORY_BALANCE, SecurityOperation.READ)
     security_administer = _permission(SYSTEM_SECURITY, SecurityOperation.ADMINISTER)
+    goods_receipt_import = _permission(GOODS_RECEIPT_DOCUMENT, SecurityOperation.IMPORT)
+    goods_receipt_post = _permission(GOODS_RECEIPT_DOCUMENT, SecurityOperation.POST)
 
     administrator = Role(
         identity=Identifier.new(),
         code=STANDARD_ADMINISTRATOR_ROLE,
         name="Standard Administrator",
-        permissions=(processing_execute, report_read, security_administer),
+        permissions=(
+            processing_execute,
+            report_read,
+            security_administer,
+            goods_receipt_import,
+            goods_receipt_post,
+        ),
     )
     operator = Role(
         identity=Identifier.new(),
         code=STANDARD_OPERATOR_ROLE,
         name="Standard Operator",
-        permissions=(processing_execute,),
+        permissions=(processing_execute, goods_receipt_import, goods_receipt_post),
     )
     auditor = Role(
         identity=Identifier.new(),

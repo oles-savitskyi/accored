@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from accore.platform.security import SecurityOperation
 from standard.security.definitions import (
+    GOODS_RECEIPT_DOCUMENT,
     PROCESSING_INVENTORY_REBUILD,
     REPORT_INVENTORY_BALANCE,
     STANDARD_ADMINISTRATOR_ROLE,
@@ -29,9 +30,18 @@ def test_standard_roles_define_expected_permissions() -> None:
         (PROCESSING_INVENTORY_REBUILD, SecurityOperation.EXECUTE),
         (REPORT_INVENTORY_BALANCE, SecurityOperation.READ),
         (SYSTEM_SECURITY, SecurityOperation.ADMINISTER),
+        (GOODS_RECEIPT_DOCUMENT, SecurityOperation.IMPORT),
+        (GOODS_RECEIPT_DOCUMENT, SecurityOperation.POST),
     }
     assert operator.permissions[0].target == PROCESSING_INVENTORY_REBUILD
-    assert auditor.permissions[0].target == REPORT_INVENTORY_BALANCE
+    assert {(permission.target, permission.operation) for permission in operator.permissions} == {
+        (PROCESSING_INVENTORY_REBUILD, SecurityOperation.EXECUTE),
+        (GOODS_RECEIPT_DOCUMENT, SecurityOperation.IMPORT),
+        (GOODS_RECEIPT_DOCUMENT, SecurityOperation.POST),
+    }
+    assert {(permission.target, permission.operation) for permission in auditor.permissions} == {
+        (REPORT_INVENTORY_BALANCE, SecurityOperation.READ)
+    }
 
 
 def test_standard_users_reference_supplied_role_identities() -> None:

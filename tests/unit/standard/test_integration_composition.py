@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import cast
 
 import pytest
 
+from accore.platform.configuration import RuntimeConfigurationContext
 from accore.platform.foundation import Identifier
 from accore.platform.integration import (
     CommandRequest,
+    IntegrationConflictError,
     IntegrationContractKind,
+    IntegrationContractNotFoundError,
     IntegrationContractValidationError,
     QueryRequest,
 )
@@ -19,10 +23,11 @@ from accore.platform.reporting import (
     ReportSchema,
 )
 from accore.platform.security import SecurityContext
-from standard.bootstrap import StandardConfigurationBootstrap
 from standard.integration import (
+    STANDARD_GOODS_RECEIPT_IMPORT_CONTRACT,
     STANDARD_INVENTORY_BALANCE_QUERY_CONTRACT,
     STANDARD_INVENTORY_REBUILD_CONTRACT,
+    StandardGoodsReceiptImportBinding,
     compose_standard_integration,
 )
 from standard.processings import InventoryDerivedStateRebuildParameters
@@ -102,7 +107,7 @@ def test_standard_contract_definitions_have_expected_identities_and_kinds() -> N
 
 
 def test_standard_command_uses_processing_runtime_and_propagates_security_context() -> None:
-    runtime_configuration, _ = StandardConfigurationBootstrap().initialize()
+    runtime_configuration = cast(RuntimeConfigurationContext, object())
     processing_runtime = FakeProcessingRuntime()
     composition = compose_standard_integration(
         processing_runtime=processing_runtime,  # type: ignore[arg-type]
@@ -123,7 +128,7 @@ def test_standard_command_uses_processing_runtime_and_propagates_security_contex
 
 
 def test_standard_query_uses_reporting_runtime_with_inventory_balance_plan() -> None:
-    runtime_configuration, _ = StandardConfigurationBootstrap().initialize()
+    runtime_configuration = cast(RuntimeConfigurationContext, object())
     report_runtime = FakeReportRuntime()
     composition = compose_standard_integration(
         processing_runtime=FakeProcessingRuntime(),  # type: ignore[arg-type]
@@ -141,7 +146,7 @@ def test_standard_query_uses_reporting_runtime_with_inventory_balance_plan() -> 
 
 
 def test_standard_query_rejects_a_plan_for_another_report() -> None:
-    runtime_configuration, _ = StandardConfigurationBootstrap().initialize()
+    runtime_configuration = cast(RuntimeConfigurationContext, object())
     report_runtime = FakeReportRuntime()
     composition = compose_standard_integration(
         processing_runtime=FakeProcessingRuntime(),  # type: ignore[arg-type]
@@ -157,7 +162,7 @@ def test_standard_query_rejects_a_plan_for_another_report() -> None:
 
 
 def test_standard_composition_shares_registry_and_exposes_posting_event_bridge() -> None:
-    runtime_configuration, _ = StandardConfigurationBootstrap().initialize()
+    runtime_configuration = cast(RuntimeConfigurationContext, object())
     composition = compose_standard_integration(
         processing_runtime=FakeProcessingRuntime(),  # type: ignore[arg-type]
         runtime_configuration=runtime_configuration,
@@ -174,3 +179,59 @@ def test_standard_composition_shares_registry_and_exposes_posting_event_bridge()
     assert composition.import_export_service is not None
     assert composition.event_dispatcher is not None
     assert composition.posting_event_bridge is not None
+
+
+class FakeGoodsReceiptImportExecutor:
+    def execute(
+        self, payload: object, security_context: object, request_identity: object
+    ) -> object:
+        return "goods-receipt-result"
+
+
+def test_goods_receipt_import_is_not_registered_without_host_executor() -> None:
+    runtime_configuration = cast(RuntimeConfigurationContext, object())
+    composition = compose_standard_integration(
+        processing_runtime=FakeProcessingRuntime(),  # type: ignore[arg-type]
+        runtime_configuration=runtime_configuration,
+        report_runtime=FakeReportRuntime(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(IntegrationContractNotFoundError):
+        composition.registry.resolve(STANDARD_GOODS_RECEIPT_IMPORT_CONTRACT.identity)
+
+
+def test_goods_receipt_import_registers_when_host_executor_is_supplied() -> None:
+    runtime_configuration = cast(RuntimeConfigurationContext, object())
+    composition = compose_standard_integration(
+        processing_runtime=FakeProcessingRuntime(),  # type: ignore[arg-type]
+        runtime_configuration=runtime_configuration,
+        report_runtime=FakeReportRuntime(),  # type: ignore[arg-type]
+        goods_receipt_import_executor=FakeGoodsReceiptImportExecutor(),  # type: ignore[arg-type]
+    )
+
+    operation = composition.registry.resolve(STANDARD_GOODS_RECEIPT_IMPORT_CONTRACT.identity)
+    assert operation.contract == STANDARD_GOODS_RECEIPT_IMPORT_CONTRACT
+    assert isinstance(operation.binding, StandardGoodsReceiptImportBinding)
+
+
+def test_duplicate_goods_receipt_import_registration_is_rejected() -> None:
+    from accore.platform.integration import BoundIntegrationOperation
+
+    runtime_configuration = cast(RuntimeConfigurationContext, object())
+    with pytest.raises(IntegrationConflictError):
+        compose_standard_integration(
+            processing_runtime=FakeProcessingRuntime(),  # type: ignore[arg-type]
+            runtime_configuration=runtime_configuration,
+            report_runtime=FakeReportRuntime(),  # type: ignore[arg-type]
+            goods_receipt_import_executor=(
+                FakeGoodsReceiptImportExecutor()  # type: ignore[arg-type]
+            ),
+            additional_operations=(
+                BoundIntegrationOperation(
+                    contract=STANDARD_GOODS_RECEIPT_IMPORT_CONTRACT,
+                    binding=StandardGoodsReceiptImportBinding(
+                        FakeGoodsReceiptImportExecutor()  # type: ignore[arg-type]
+                    ),
+                ),
+            ),
+        )
