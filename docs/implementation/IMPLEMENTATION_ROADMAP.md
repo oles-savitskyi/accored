@@ -1041,6 +1041,8 @@ Phase 11 is complete when:
 
 # 16. Phase 12 — Integration
 
+**Status (2026-10-16): CLOSED — Integration infrastructure complete, with an explicitly accepted Standard MVP dependency.**
+
 ## Objective
 
 Implement the minimum integration capabilities required to make the Standard Edition externally usable.
@@ -1071,6 +1073,18 @@ Phase 12 is complete when:
 4. supported events can be published/consumed;
 5. basic import/export works where required by the MVP.
 
+## Accepted closure boundary — 2026-10-16
+
+The project owner accepted the decision to proceed to Phase 13 — Standard MVP without expanding Phase 12 into a generic document-runtime or persistence subsystem.
+
+The completed Phase 12 scope includes the Integration contracts and runtime, event infrastructure and Posting bridge, import/export services and JSON format adapters, Standard Integration composition, the HTTP adapter and Standard import/export contracts, and Goods Receipt import orchestration through the narrow host-supplied `GoodsReceiptDocumentGateway`.
+
+This closure is **not** evidence that Standard Goods Receipt import works out of the box. The concrete Goods Receipt document metadata/runtime and durable persistence path are not demonstrated by the current implementation; the gateway is a host-supplied boundary, and the existing Slice 8 tests use test doubles. The Phase 12 import criterion is therefore accepted with this explicit exception rather than being represented as fully demonstrated.
+
+Phase 13 must address the real Goods Receipt document lifecycle as a prerequisite for the complete Standard MVP vertical scenario shown in this roadmap. That work must begin with an Architecture Definition / Scope and then a reviewed Concrete API Design before implementation. The end-to-end proof must create and durably persist the document, retrieve its state through the configured `DocumentStateProvider`, invoke Posting only through `PostingAPI`, and verify the resulting durable outcome. Preserve Slice 8's `POSTING_INDETERMINATE` semantics; do not add automatic retries or claim exactly-once behavior.
+
+See `PHASE_12_Integration_Validation_and_Closure.md` and `PHASE_12_Integration_Closure_Architecture_Review.md` for the decision and evidence.
+
 ---
 
 # 17. Phase 13 — Standard MVP
@@ -1084,6 +1098,10 @@ This phase is not primarily about introducing new architecture.
 It is about integrating and hardening the already implemented vertical slices into one usable product scenario.
 
 ---
+
+## Entry obligation carried from Phase 12
+
+The accepted Phase 12 closure leaves the Standard Goods Receipt import vertical path as a mandatory prerequisite for the complete MVP vertical scenario, not as a completed out-of-box capability. Before implementing it, define and approve the minimal document metadata/runtime and durable persistence architecture. Then prove the complete host-to-Posting path with an end-to-end test. Do not create a generic document framework unless the approved architecture establishes that it is necessary.
 
 ## MVP Core
 
